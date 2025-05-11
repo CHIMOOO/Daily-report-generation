@@ -35,6 +35,20 @@ const recentDirectories = ref<string[]>([])
 
 // 检查API密钥是否配置
 const checkApiKey = () => {
+  // 直接检查localStorage
+  const apiKey = localStorage.getItem('DEEPSEEK_API_KEY')
+  console.log("直接检查localStorage:", {
+    'DEEPSEEK_API_KEY': apiKey,
+    'isApiKeyConfigured()': isApiKeyConfigured()
+  })
+  
+  // 尝试手动设置一个测试值
+  if (!apiKey) {
+    console.log("尝试向localStorage手动设置一个测试值")
+    localStorage.setItem('TEST_KEY', 'test_value')
+    console.log("测试值设置后:", localStorage.getItem('TEST_KEY'))
+  }
+
   if (!isApiKeyConfigured()) {
     message.warning('请先配置DeepSeek API密钥')
     settingsVisible.value = true
@@ -210,6 +224,11 @@ onMounted(() => {
     // 绑定message的方法
     window.message = message
   }
+  
+  // 检查API密钥配置
+  setTimeout(() => {
+    checkApiKey()
+  }, 500)
 })
 </script>
 
@@ -245,7 +264,7 @@ onMounted(() => {
               </a-button>
             </div>
             <div v-if="directoryPath" class="selected-directory">
-              <FolderOutlined class="mr-2" />
+              <FolderOutlined class="directory-icon" />
               <span class="directory-path">{{ directoryPath }}</span>
             </div>
             <div v-else class="no-directory">
@@ -356,7 +375,7 @@ onMounted(() => {
                 v-for="dir in recentDirectories"
                 :key="dir"
                 @click="selectDirectory(dir)"
-                class="cursor-pointer hover:bg-gray-50"
+                class="directory-list-item"
               >
                 <FolderOutlined class="mr-2 text-blue-500" />
                 {{ dir }}
@@ -530,10 +549,21 @@ body {
   border-radius: var(--mosaic-radius);
   font-size: 14px;
   word-break: break-all;
+  display: flex;
+  align-items: flex-start;
+}
+
+.directory-icon {
+  flex-shrink: 0;
+  margin-right: 8px;
+  margin-top: 3px;
+  color: var(--mosaic-primary);
 }
 
 .directory-path {
   color: var(--mosaic-text-secondary);
+  word-break: break-all;
+  line-height: 1.5;
 }
 
 .no-directory {
@@ -660,6 +690,8 @@ body {
 
 .message-body {
   white-space: pre-wrap;
+  line-height: 1.6;
+  word-break: break-all;
 }
 
 /* 输入区域 */
@@ -709,6 +741,19 @@ body {
 
 .mini-empty :deep(.ant-empty-description) {
   font-size: 12px;
+}
+
+/* 目录列表项 */
+.directory-list-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-radius: var(--mosaic-radius);
+  overflow: hidden;
+  word-break: break-all;
+}
+
+.directory-list-item:hover {
+  background-color: var(--mosaic-background);
 }
 
 /* 模态框样式 */

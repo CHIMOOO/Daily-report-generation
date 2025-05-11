@@ -18,12 +18,23 @@ export const getCommitsForDate = async (repoPath, date) => {
     console.log(`[Git服务] 获取 ${repoPath} 在 ${date} 的提交记录`);
     
     try {
-        // 如果在Electron环境中，使用IPC通信
+        // 首先尝试直接使用window.api特定方法（优先）
+        if (window.api && window.api.getGitCommits) {
+            return await window.api.getGitCommits(repoPath, date);
+        }
+        
+        // 其次尝试使用Electron的ipcRenderer
         if (window.electron) {
-            return await window.electron.ipcRenderer.invoke('git:getCommits', {
-                repoPath,
-                date: date.toISOString()
-            });
+            try {
+                return await window.electron.ipcRenderer.invoke('git:getCommits', {
+                    repoPath,
+                    date: date.toISOString()
+                });
+            } catch (ipcError) {
+                console.warn('IPC调用失败，使用模拟数据:', ipcError);
+                // IPC调用失败，回退到模拟数据
+                return await getMockCommits(repoPath, date);
+            }
         }
         
         // 否则使用模拟数据
@@ -80,6 +91,15 @@ const getMockCommits = async (repoPath, date) => {
  * @returns {Promise<Array>} 提交信息数组
  */
 export const getRecentCommits = async (repoPath, days = 7) => {
+    // 首先尝试直接使用window.api特定方法（优先）
+    if (window.api && window.api.getRecentCommits) {
+        try {
+            return await window.api.getRecentCommits(repoPath, days);
+        } catch (error) {
+            console.warn('API调用失败，尝试其他方法:', error);
+        }
+    }
+  
     // 检查是否在Electron环境中
     if (window.electron) {
         try {

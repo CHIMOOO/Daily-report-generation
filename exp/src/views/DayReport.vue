@@ -96,7 +96,7 @@ const formatMessage = (content, role) => ({
 
 const checkApiKey = () => {
   if (!isApiKeyConfigured()) {
-    message.warning('请先配置DeepSeek API密钥')
+    message.warning('请先配置DeepSeek API密钥。')
     settingsVisible.value = true
     return false
   }

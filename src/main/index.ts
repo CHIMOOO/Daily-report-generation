@@ -21,8 +21,29 @@ function createWindow(): void {
     ...(process.platform === 'linux' ? { icon: join(__dirname, '../../build/icon.png') } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      webSecurity: true,
+      contextIsolation: true,
+      webviewTag: false,
+      nodeIntegration: false,
     }
+  })
+
+  // 配置CSP头
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "font-src 'self'; " +
+          "img-src 'self' data:; " +
+          "connect-src 'self' https://api.deepseek.com https://*.deepseek.com;"
+        ]
+      }
+    })
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -135,6 +156,207 @@ function registerIpcHandlers(): void {
     } catch (error) {
       console.error('获取最近Git提交记录失败:', error)
       throw new Error(`无法获取最近Git提交记录: ${error.message}`)
+    }
+  })
+
+  // 添加API测试连接处理程序
+  ipcMain.handle('api:testConnection', async (event, args) => {
+    try {
+      const { apiKey, apiBaseUrl, model } = args
+      
+      // 使用Node.js的https模块发起请求
+      const https = require('https')
+      const url = require('url')
+      
+      const apiUrl = `${apiBaseUrl}/chat/completions`
+      const parsedUrl = url.parse(apiUrl)
+      
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: parsedUrl.path,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        }
+      }
+      
+      return new Promise((resolve) => {
+        const req = https.request(options, (res) => {
+          let data = ''
+          
+          res.on('data', (chunk) => {
+            data += chunk
+          })
+          
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              resolve({ success: true })
+            } else {
+              try {
+                const parsed = JSON.parse(data)
+                resolve({ 
+                  success: false, 
+                  error: parsed.error?.message || `状态码: ${res.statusCode}` 
+                })
+              } catch (e: any) {
+                resolve({ 
+                  success: false, 
+                  error: `请求失败，状态码: ${res.statusCode}` 
+                })
+              }
+            }
+          })
+        })
+        
+        req.on('error', (error: Error) => {
+          resolve({ success: false, error: error.message })
+        })
+        
+        // 写入请求主体
+        req.write(JSON.stringify({
+          model: model,
+          messages: [{ role: 'user', content: '你好' }],
+          max_tokens: 5,
+        }))
+        
+        req.end()
+      })
+    } catch (error: any) {
+      return { success: false, error: error.message || '未知错误' }
+    }
+  })
+
+  // 添加生成日报的API请求处理程序
+  ipcMain.handle('api:generateReport', async (event, args) => {
+    try {
+      const { apiKey, apiBaseUrl, requestBody } = args
+      
+      // 使用Node.js的https模块发起请求
+      const https = require('https')
+      const url = require('url')
+      
+      const apiUrl = `${apiBaseUrl}/chat/completions`
+      const parsedUrl = url.parse(apiUrl)
+      
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || 443,
+        path: parsedUrl.path,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        }
+      }
+      
+      return new Promise((resolve) => {
+        const req = https.request(options, (res) => {
+          let data = ''
+          
+          res.on('data', (chunk) => {
+            data += chunk
+          })
+          
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              try {
+                const parsedData = JSON.parse(data)
+                resolve({ 
+                  success: true,
+                  content: parsedData.choices[0].message.content
+                })
+              } catch (e: any) {
+                resolve({ 
+                  success: false, 
+                  error: `解析响应失败: ${e.message}` 
+                })
+              }
+            } else {
+              try {
+                const parsed = JSON.parse(data)
+                resolve({ 
+                  success: false, 
+                  error: parsed.error?.message || `状态码: ${res.statusCode}` 
+                })
+              } catch (e: any) {
+                resolve({ 
+                  success: false, 
+                  error: `请求失败，状态码: ${res.statusCode}` 
+                })
+              }
+            }
+          })
+        })
+        
+        req.on('error', (error: Error) => {
+          resolve({ success: false, error: error.message })
+        })
+        
+        // 写入请求主体
+        req.write(JSON.stringify(requestBody))
+        
+        req.end()
+      })
+    } catch (error: any) {
+      return { success: false, error: error.message || '未知错误' }
+    }
+  })
+
+  // 添加设置保存处理程序
+  ipcMain.handle('settings:save', async (event, settings) => {
+    try {
+      console.log('收到设置保存请求:', settings)
+      
+      // 获取用户数据目录
+      const userDataPath = app.getPath('userData')
+      const settingsPath = join(userDataPath, 'settings.json')
+      
+      console.log('保存设置到文件:', settingsPath)
+      
+      // 写入设置到文件
+      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8')
+      
+      console.log('设置保存成功')
+      return { success: true }
+    } catch (error: any) {
+      console.error('保存设置失败:', error)
+      return { success: false, error: error.message || '未知错误' }
+    }
+  })
+
+  // 添加设置加载处理程序
+  ipcMain.handle('settings:load', async (event) => {
+    try {
+      // 获取用户数据目录
+      const userDataPath = app.getPath('userData')
+      const settingsPath = join(userDataPath, 'settings.json')
+      
+      console.log('从文件加载设置:', settingsPath)
+      
+      // 检查设置文件是否存在
+      if (!fs.existsSync(settingsPath)) {
+        console.log('设置文件不存在，返回默认设置')
+        return { 
+          success: true, 
+          settings: {
+            DEEPSEEK_API_KEY: '',
+            DEEPSEEK_API_BASE_URL: 'https://api.deepseek.com',
+            DEEPSEEK_MODEL: 'deepseek-chat'
+          } 
+        }
+      }
+      
+      // 读取设置文件
+      const settingsData = fs.readFileSync(settingsPath, 'utf8')
+      const settings = JSON.parse(settingsData)
+      
+      console.log('设置加载成功:', settings)
+      return { success: true, settings }
+    } catch (error: any) {
+      console.error('加载设置失败:', error)
+      return { success: false, error: error.message || '未知错误' }
     }
   })
 }

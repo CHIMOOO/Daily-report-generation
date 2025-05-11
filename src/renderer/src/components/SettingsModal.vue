@@ -33,20 +33,42 @@ const selectedModel = ref('')
 const isApiConfigured = ref(isApiKeyConfigured())
 const loading = ref(false)
 
-// 组件加载时检查缓存中是否有API Key和选定的模型
-onMounted(() => {
-  // 检查localStorage中是否有密钥
-  const savedKey = localStorage.getItem('deepseek_api_key')
-  if (savedKey) {
-    // 为了安全起见，不直接显示完整的API密钥
-    apiKey.value = maskApiKey(savedKey)
-    isApiConfigured.value = true
-  }
-
-  // 获取已保存的模型选择
-  selectedModel.value = getSelectedModel()
-
+// 组件挂载时加载设置
+onMounted(async () => {
+  // 先从localStorage加载
   loadSettings()
+  
+  // 再尝试从文件系统加载（优先级更高）
+  try {
+    if (window.electron && window.electron.ipcRenderer) {
+      const result = await window.electron.ipcRenderer.invoke('settings:load')
+      console.log('从文件系统加载设置结果:', result)
+      
+      if (result.success && result.settings) {
+        // 使用从文件加载的设置更新表单状态
+        if (result.settings.DEEPSEEK_API_KEY) {
+          formState.apiKey = result.settings.DEEPSEEK_API_KEY
+        }
+        
+        if (result.settings.DEEPSEEK_API_BASE_URL) {
+          formState.apiBaseUrl = result.settings.DEEPSEEK_API_BASE_URL
+        }
+        
+        if (result.settings.DEEPSEEK_MODEL) {
+          formState.model = result.settings.DEEPSEEK_MODEL
+        }
+        
+        // 同时更新localStorage
+        localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
+        localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
+        localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+        
+        console.log('已从文件系统更新设置')
+      }
+    }
+  } catch (e) {
+    console.error('尝试从文件系统加载设置失败:', e)
+  }
 })
 
 // 掩盖API密钥，只显示前4位和后4位
@@ -75,10 +97,65 @@ const handleSave = async () => {
   saving.value = true
 
   try {
-    // 保存到localStorage
+    // 打印当前localStorage状态
+    console.log('保存前, localStorage中的值:', {
+      '直接访问': {
+        'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
+        'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
+        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL')
+      },
+      'API访问': window.api?.localStorage ? {
+        'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
+        'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
+        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL')
+      } : '不可用'
+    })
+    
+    console.log('准备保存的值:', {
+      apiKey: formState.apiKey,
+      apiBaseUrl: formState.apiBaseUrl,
+      model: formState.model
+    })
+
+    // 尝试通过常规方式保存到localStorage
     localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
     localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
     localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+    
+    // 如果window.api.localStorage可用，也通过API保存
+    if (window.api?.localStorage) {
+      window.api.localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
+      window.api.localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
+      window.api.localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+    }
+
+    // 验证保存是否成功
+    console.log('保存后, localStorage中的值:', {
+      '直接访问': {
+        'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
+        'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
+        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL')
+      },
+      'API访问': window.api?.localStorage ? {
+        'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
+        'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
+        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL')
+      } : '不可用'
+    })
+
+    // 尝试直接使用window.electron写入配置文件
+    try {
+      if (window.electron && window.electron.ipcRenderer) {
+        await window.electron.ipcRenderer.invoke('settings:save', {
+          DEEPSEEK_API_KEY: formState.apiKey,
+          DEEPSEEK_API_BASE_URL: formState.apiBaseUrl,
+          DEEPSEEK_MODEL: formState.model
+        })
+        console.log('通过IPC保存设置成功')
+      }
+    } catch (e) {
+      console.error('通过IPC保存设置失败:', e)
+    }
 
     message.success('设置已保存')
     emit('update:visible', false)
@@ -100,27 +177,48 @@ const testConnection = async () => {
 
   testing.value = true
   try {
-    const response = await fetch(`${formState.apiBaseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${formState.apiKey}`,
-      },
-      body: JSON.stringify({
-        model: formState.model,
-        messages: [{ role: 'user', content: '你好' }],
-        max_tokens: 5,
-      }),
-    })
-
-    const data = await response.json()
-
-    if (response.ok) {
-      message.success('连接成功！API密钥有效')
+    // 使用Electron IPC调用进行API请求以绕过CSP限制
+    if (window.electron) {
+      const result = await window.electron.ipcRenderer.invoke('api:testConnection', {
+        apiKey: formState.apiKey,
+        apiBaseUrl: formState.apiBaseUrl,
+        model: formState.model
+      })
+      
+      if (result.success) {
+        message.success('连接成功！API密钥有效')
+      } else {
+        message.error(`连接失败: ${result.error || '未知错误'}`)
+      }
     } else {
-      message.error(`连接失败: ${data.error?.message || '未知错误'}`)
+      // 浏览器环境回退方案 - 仅用于开发测试
+      try {
+        const response = await fetch(`${formState.apiBaseUrl}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${formState.apiKey}`,
+          },
+          body: JSON.stringify({
+            model: formState.model,
+            messages: [{ role: 'user', content: '你好' }],
+            max_tokens: 5,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok) {
+          message.success('连接成功！API密钥有效')
+        } else {
+          message.error(`连接失败: ${data.error?.message || '未知错误'}`)
+        }
+      } catch (error: any) {
+        message.error(`浏览器环境不支持直接API请求，请在Electron环境中测试`)
+      }
     }
   } catch (error: any) {
+    console.error('测试连接失败:', error)
     message.error(`连接测试失败: ${error.message || '未知错误'}`)
   } finally {
     testing.value = false
