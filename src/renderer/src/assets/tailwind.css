@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --gemini-primary: #1a73e8;
+    --gemini-primary-dark: #1967d2;
+    --gemini-text: #202124;
+    --gemini-text-secondary: #5f6368;
+    --gemini-border: #dadce0;
+    --gemini-background: #f8f9fa;
+    --gemini-sidebar-width: 280px;
+    --gemini-header-height: 64px;
+    --gemini-message-spacing: 24px;
+    --gemini-radius: 12px;
+    --gemini-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  }
+
+  html, body {
+    @apply m-0 p-0 h-full w-full;
+    font-family: 'Google Sans', Arial, sans-serif;
+    color: var(--gemini-text);
+    background: white;
+    line-height: 1.5;
+  }
+
+  #app {
+    @apply h-screen w-screen;
+  }
+}
+
+@layer components {
+  .gemini-container {
+    @apply flex flex-col h-full w-full;
+  }
+
+  .gemini-header {
+    height: var(--gemini-header-height);
+    @apply flex items-center justify-between px-6 border-b border-gray-200 bg-white shadow-sm z-10;
+  }
+
+  .gemini-main {
+    @apply flex flex-1 overflow-hidden;
+  }
+
+  .sidebar {
+    width: var(--gemini-sidebar-width);
+    @apply p-5 border-r border-gray-200 bg-gray-50 flex flex-col gap-6;
+  }
+
+  .chat-area {
+    @apply flex-1 flex flex-col bg-white;
+  }
+
+  .chat-messages {
+    @apply flex-1 p-6 overflow-y-auto flex flex-col;
+    gap: var(--gemini-message-spacing);
+  }
+
+  .message {
+    @apply flex max-w-[85%];
+  }
+
+  .message-assistant {
+    @apply self-start;
+  }
+
+  .message-user {
+    @apply self-end flex-row-reverse;
+  }
+
+  .message-content {
+    @apply bg-gray-50 rounded-xl p-3 relative;
+  }
+
+  .message-user .message-content {
+    @apply bg-blue-600 text-white;
+  }
+
+  .chat-input {
+    @apply p-4 border-t border-gray-200 flex gap-3;
+  }
+
+  .input-field {
+    @apply rounded-full px-4 py-2 border-gray-200 bg-gray-50;
+  }
+
+  .send-btn {
+    @apply rounded-full w-11 h-11 flex items-center justify-center p-0;
+  }
+}

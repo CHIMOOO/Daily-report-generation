@@ -7,6 +7,7 @@ import {
   getSelectedModel,
   saveSelectedModel,
 } from '../services/deepseekService'
+import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps({
   visible: {
@@ -158,7 +159,7 @@ defineExpose({
           class="rounded-lg"
         />
         <div class="mt-2 text-gray-500 text-sm flex items-center">
-          <a-icon type="info-circle" class="mr-2" />
+          <InfoCircleOutlined class="mr-2" />
           获取API密钥请访问:
           <a
             href="https://platform.deepseek.com"
@@ -186,7 +187,7 @@ defineExpose({
       </a-form-item>
 
       <div class="security-note mt-4 text-sm text-gray-500 mb-6 border-l-4 border-blue-200 pl-3 py-2 bg-blue-50 rounded">
-        <a-icon type="lock" class="mr-1" />
+        <LockOutlined class="mr-1" />
         安全提示：API密钥将安全存储在本地浏览器中，不会上传到任何服务器
       </div>
 
