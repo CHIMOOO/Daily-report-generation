@@ -1,7 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { Bubble, Conversations, Sender, XProvider } from 'ant-design-x-vue'
-import { message, Button } from 'ant-design-vue'
+import { message, Button, Modal, Input } from 'ant-design-vue'
 import 'ant-design-vue/dist/reset.css'
 import { generateDayReport, isApiKeyConfigured } from '../services/deepseekService'
 import { getCommitsForDate } from '../services/gitService'
@@ -25,6 +25,65 @@ const settingsModalRef = ref(null)
 
 // 添加用户消息变量
 const userMessage = ref('')
+
+// 添加已选目录列表和目录选择功能
+const recentDirectories = ref([
+  'D:/my-project',
+  'D:/code/web-app',
+  'D:/projects/vue-demo',
+  'D:/github/open-source',
+])
+
+// 修改目录选择处理函数
+const handleSelectDirectory = () => {
+  // 在实际应用中，这里应该调用电子文件选择器
+  // 由于浏览器安全限制，这里只是模拟
+  directoryPathModal.value = true
+}
+
+// 选择已有目录
+const selectExistingDirectory = (dir) => {
+  directoryPath.value = dir
+  directoryPathModal.value = false
+  message.success('已选择目录: ' + directoryPath.value)
+
+  // 确保该目录在最近使用的列表中
+  if (!recentDirectories.value.includes(dir)) {
+    recentDirectories.value.unshift(dir)
+    // 保持列表不超过5个
+    if (recentDirectories.value.length > 5) {
+      recentDirectories.value.pop()
+    }
+  }
+}
+
+// 添加新目录
+const addNewDirectory = () => {
+  if (!newDirectoryPath.value) {
+    message.error('请输入目录路径')
+    return
+  }
+
+  directoryPath.value = newDirectoryPath.value
+
+  // 添加到最近使用的目录列表
+  if (!recentDirectories.value.includes(newDirectoryPath.value)) {
+    recentDirectories.value.unshift(newDirectoryPath.value)
+    // 保持列表不超过5个
+    if (recentDirectories.value.length > 5) {
+      recentDirectories.value.pop()
+    }
+  }
+
+  newDirectoryPath.value = ''
+  directoryPathModal.value = false
+  message.success('已选择目录: ' + directoryPath.value)
+}
+
+// 目录选择模态框状态
+const directoryPathModal = ref(false)
+// 新目录路径输入
+const newDirectoryPath = ref('')
 
 // 格式化消息，确保符合ant-design-x-vue要求
 const formatMessage = (content, role) => ({
@@ -86,13 +145,6 @@ const handleSubmit = async () => {
   } finally {
     loading.value = false
   }
-}
-
-const handleSelectDirectory = () => {
-  // 在实际应用中，这里应该使用文件选择器
-  // 由于浏览器安全限制，模拟选择目录
-  directoryPath.value = 'D:/my-project'
-  message.success('已选择目录: ' + directoryPath.value)
 }
 
 // 日期变更处理
@@ -251,49 +303,47 @@ onMounted(() => {
           <div class="settings-panel p-4 bg-gray-50 border-b border-gray-200">
             <div class="flex flex-wrap gap-4 items-center">
               <div>
-                <Button @click="handleSelectDirectory" type="primary">
-                  <span class="mr-1">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path
-                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
-                      ></path>
-                    </svg>
-                  </span>
+                <Button @click="handleSelectDirectory" type="primary" class="flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="mr-1"
+                  >
+                    <path
+                      d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                    ></path>
+                  </svg>
                   选择代码目录
                 </Button>
                 <span v-if="directoryPath" class="ml-2 text-gray-600">{{ directoryPath }}</span>
               </div>
 
               <div class="flex items-center gap-2">
-                <Button @click="toggleDateMode">
-                  <span class="mr-1">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                      <line x1="16" y1="2" x2="16" y2="6"></line>
-                      <line x1="8" y1="2" x2="8" y2="6"></line>
-                      <line x1="3" y1="10" x2="21" y2="10"></line>
-                    </svg>
-                  </span>
+                <Button @click="toggleDateMode" class="flex items-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="mr-1"
+                  >
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
                   {{ isCustomDate ? '使用今天' : '自定义日期' }}
                 </Button>
 
@@ -310,26 +360,29 @@ onMounted(() => {
                 </div>
               </div>
 
-              <Button @click="handleSubmit" type="primary" :loading="loading" class="generate-btn">
-                <span v-if="!loading" class="mr-1">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="16"
-                    height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z"
-                    ></path>
-                    <polyline points="12 16 16 12 12 8"></polyline>
-                    <line x1="8" y1="12" x2="16" y2="12"></line>
-                  </svg>
-                </span>
+              <Button
+                @click="handleSubmit"
+                type="primary"
+                :loading="loading"
+                class="generate-btn flex items-center"
+              >
+                <svg
+                  v-if="!loading"
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="mr-1"
+                >
+                  <path d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z"></path>
+                  <polyline points="12 16 16 12 12 8"></polyline>
+                  <line x1="8" y1="12" x2="16" y2="12"></line>
+                </svg>
                 {{ loading ? '生成中...' : '生成日报' }}
               </Button>
             </div>
@@ -402,6 +455,61 @@ onMounted(() => {
       @saved="handleSettingsSaved"
       ref="settingsModalRef"
     />
+
+    <Modal
+      title="选择代码目录"
+      :visible="directoryPathModal"
+      @cancel="directoryPathModal = false"
+      :footer="null"
+      class="directory-modal"
+    >
+      <div class="mb-4">
+        <h3 class="text-lg font-medium mb-2">最近使用的目录</h3>
+        <div class="space-y-2">
+          <div
+            v-for="dir in recentDirectories"
+            :key="dir"
+            class="flex items-center justify-between p-2 rounded hover:bg-gray-100 cursor-pointer"
+            @click="selectExistingDirectory(dir)"
+          >
+            <div class="flex items-center">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="text-blue-500 mr-2"
+              >
+                <path
+                  d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                ></path>
+              </svg>
+              <span>{{ dir }}</span>
+            </div>
+            <Button size="small" type="link" @click.stop="selectExistingDirectory(dir)"
+              >选择</Button
+            >
+          </div>
+        </div>
+      </div>
+
+      <div class="pt-4 border-t border-gray-200">
+        <h3 class="text-lg font-medium mb-2">添加新目录</h3>
+        <div class="flex space-x-2">
+          <Input v-model:value="newDirectoryPath" placeholder="输入目录路径，如: D:/my-project" />
+          <Button type="primary" @click="addNewDirectory">添加</Button>
+        </div>
+        <div class="text-gray-500 text-sm mt-2">
+          <p>注意: 在浏览器中无法直接选择本地文件夹，请手动输入路径</p>
+          <p>实际应用中可使用Electron等技术实现文件选择器</p>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
 
@@ -580,5 +688,22 @@ header {
 .input-area {
   box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.03);
   padding: 1rem;
+}
+
+/* 按钮图标对齐样式 */
+button svg,
+.ant-btn svg,
+.ant-btn .anticon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.ant-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
