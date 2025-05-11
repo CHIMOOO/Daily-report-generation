@@ -1,0 +1,96 @@
+import { message } from 'ant-design-vue'
+
+// 检查API密钥是否配置
+export const isApiKeyConfigured = (): boolean => {
+  const apiKey = localStorage.getItem('DEEPSEEK_API_KEY')
+  return !!apiKey && apiKey.trim().length > 0
+}
+
+// 获取API密钥
+export const getApiKey = (): string => {
+  return localStorage.getItem('DEEPSEEK_API_KEY') || ''
+}
+
+// 获取API基础URL
+export const getApiBaseUrl = (): string => {
+  return localStorage.getItem('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com'
+}
+
+// 获取所选模型
+export const getSelectedModel = (): string => {
+  return localStorage.getItem('DEEPSEEK_MODEL') || 'deepseek-chat'
+}
+
+// 可用模型列表
+export const AVAILABLE_MODELS = [
+  {
+    id: 'deepseek-chat',
+    name: 'DeepSeek-V3',
+    description: '通用对话模型'
+  },
+  {
+    id: 'deepseek-reasoner',
+    name: 'DeepSeek-R1',
+    description: '推理能力增强的模型'
+  },
+  {
+    id: 'deepseek-coder',
+    name: 'DeepSeek-Coder',
+    description: '代码生成和分析专用模型'
+  }
+]
+
+/**
+ * 生成日报
+ */
+export async function generateDayReport({ gitPath, date, customPrompt = '' }) {
+  if (!isApiKeyConfigured()) {
+    throw new Error('请先配置DeepSeek API密钥')
+  }
+
+  try {
+    const apiKey = getApiKey()
+    const apiBaseUrl = getApiBaseUrl()
+    const model = getSelectedModel()
+
+    // 构建系统提示词
+    const systemPrompt = `你是一个帮助生成日报的AI助手。请根据用户提供的Git代码仓库路径和日期，生成一份简洁的工作日报。
+日期: ${date.toLocaleDateString('zh-CN')}
+代码库路径: ${gitPath}`
+
+    // 构建用户提示词
+    let userPrompt = `请根据我今天的工作内容，生成一份工作日报。`
+    if (customPrompt) {
+      userPrompt += `\n其他信息：${customPrompt}`
+    }
+
+    // 请求API
+    const response = await fetch(`${apiBaseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        max_tokens: 1000,
+        temperature: 0.7
+      })
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(`API请求失败: ${errorData.error?.message || response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.choices[0].message.content
+  } catch (error: any) {
+    console.error('生成日报时出错:', error)
+    throw new Error(`生成日报失败: ${error.message || '未知错误'}`)
+  }
+} 

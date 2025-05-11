@@ -215,14 +215,13 @@ onMounted(() => {
 
 <template>
   <a-config-provider :locale="zhCN">
-    <div class="gemini-container">
+    <div class="mosaic-container">
       <!-- 顶部导航 -->
-      <header class="gemini-header">
+      <header class="mosaic-header">
         <div class="logo">
-          <svg width="32" height="32" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#4285F4" d="M32 96c0-35.346 28.654-64 64-64 35.347 0 64 28.654 64 64 0 35.346-28.653 64-64 64-35.346 0-64-28.654-64-64"/>
-            <path fill="#FFF" d="M69.822 68.191c5.502-5.502 14.277-5.502 19.78 0L152.883 132c-9.02 14.686-25.045 24.281-43.24 24.548C77.92 157.029 52 131.6 52 100c0-18.017 9.102-33.874 22.963-43.12l-5.14 11.311z"/>
-            <path fill="#AECBFA" d="M140.209 141.209c-12.402 12.402-32.508 12.402-44.91 0-9.72-9.72-11.894-24.194-6.532-36.041l51.442 36.041z"/>
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="32" height="32" rx="8" fill="#5661F1" />
+            <path d="M22 12H10C9.44772 12 9 12.4477 9 13V19C9 19.5523 9.44772 20 10 20H22C22.5523 20 23 19.5523 23 19V13C23 12.4477 22.5523 12 22 12Z" fill="white" />
           </svg>
           <span class="logo-text">日报生成助手</span>
         </div>
@@ -235,15 +234,14 @@ onMounted(() => {
       </header>
 
       <!-- 主内容区 -->
-      <main class="gemini-main">
+      <main class="mosaic-main">
         <!-- 左侧边栏 -->
         <div class="sidebar">
-          <div class="directory-section">
+          <div class="sidebar-card">
             <div class="section-title">
               <h3>代码库目录</h3>
-              <a-button type="text" @click="openDirectoryDialog" size="small">
+              <a-button type="text" @click="openDirectoryDialog" size="small" class="btn-icon">
                 <template #icon><FolderOpenOutlined /></template>
-                选择
               </a-button>
             </div>
             <div v-if="directoryPath" class="selected-directory">
@@ -255,7 +253,7 @@ onMounted(() => {
             </div>
           </div>
 
-          <div class="date-section">
+          <div class="sidebar-card">
             <div class="section-title">
               <h3>日期选择</h3>
             </div>
@@ -267,7 +265,7 @@ onMounted(() => {
             />
           </div>
 
-          <div class="actions-section">
+          <div class="sidebar-card actions-section">
             <a-button
               type="primary"
               block
@@ -290,13 +288,13 @@ onMounted(() => {
               :class="['message', `message-${msg.role}`]"
             >
               <div class="message-avatar">
-                <img
-                  v-if="msg.role === 'assistant'"
-                  src="https://branditechture.agency/brand-logos/wp-content/uploads/wpdm-cache/Google-Gemini-AI-900x0.png"
-                  alt="AI"
-                />
+                <div v-if="msg.role === 'assistant'" class="assistant-avatar">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="#5661F1"/>
+                  </svg>
+                </div>
                 <div v-else class="user-avatar">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="#fff"/>
                     <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" fill="#fff"/>
                   </svg>
@@ -348,7 +346,7 @@ onMounted(() => {
         :visible="directoryDialogVisible"
         @cancel="directoryDialogVisible = false"
         :footer="null"
-        class="gemini-modal"
+        class="mosaic-modal"
       >
         <div class="mb-4">
           <h4 class="text-base font-medium mb-2">最近使用的目录</h4>
@@ -358,7 +356,7 @@ onMounted(() => {
                 v-for="dir in recentDirectories"
                 :key="dir"
                 @click="selectDirectory(dir)"
-                class="cursor-pointer hover:bg-blue-50"
+                class="cursor-pointer hover:bg-gray-50"
               >
                 <FolderOutlined class="mr-2 text-blue-500" />
                 {{ dir }}
@@ -399,27 +397,30 @@ onMounted(() => {
 </template>
 
 <style>
-/* 谷歌Gemini风格 */
+/* Cruip Mosaic 风格 */
 :root {
-  --gemini-primary: #1a73e8;
-  --gemini-primary-dark: #1967d2;
-  --gemini-text: #202124;
-  --gemini-text-secondary: #5f6368;
-  --gemini-border: #dadce0;
-  --gemini-background: #f8f9fa;
-  --gemini-sidebar-width: 280px;
-  --gemini-header-height: 64px;
-  --gemini-message-spacing: 24px;
-  --gemini-radius: 12px;
-  --gemini-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --mosaic-primary: #5661F1;
+  --mosaic-primary-hover: #4752e3;
+  --mosaic-text: #1e293b;
+  --mosaic-text-secondary: #64748b;
+  --mosaic-border: #e2e8f0;
+  --mosaic-background: #f8fafc;
+  --mosaic-sidebar-width: 280px;
+  --mosaic-header-height: 64px;
+  --mosaic-message-spacing: 16px;
+  --mosaic-radius: 12px;
+  --mosaic-radius-lg: 16px;
+  --mosaic-shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+  --mosaic-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --mosaic-shadow-md: 0 8px 20px rgba(0, 0, 0, 0.12);
 }
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Google Sans', Arial, sans-serif;
-  color: var(--gemini-text);
-  background: #fff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--mosaic-text);
+  background: var(--mosaic-background);
   line-height: 1.5;
   height: 100vh;
   overflow: hidden;
@@ -432,23 +433,23 @@ body {
   flex-direction: column;
 }
 
-.gemini-container {
+.mosaic-container {
   display: flex;
   flex-direction: column;
   height: 100%;
   width: 100%;
+  background-color: var(--mosaic-background);
 }
 
 /* 头部样式 */
-.gemini-header {
-  height: var(--gemini-header-height);
+.mosaic-header {
+  height: var(--mosaic-header-height);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
-  border-bottom: 1px solid var(--gemini-border);
   background: white;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  box-shadow: var(--mosaic-shadow-sm);
   z-index: 10;
 }
 
@@ -458,66 +459,87 @@ body {
 }
 
 .logo-text {
-  font-size: 20px;
-  font-weight: 500;
+  font-size: 18px;
+  font-weight: 600;
   margin-left: 12px;
-  color: var(--gemini-text);
+  color: var(--mosaic-text);
+  white-space: nowrap;
 }
 
 .settings-btn {
-  border-radius: 20px;
+  border-radius: var(--mosaic-radius);
 }
 
 /* 主内容区域 */
-.gemini-main {
+.mosaic-main {
   display: flex;
   flex: 1;
   overflow: hidden;
+  padding: 24px;
+  gap: 24px;
 }
 
 /* 侧边栏 */
 .sidebar {
-  width: var(--gemini-sidebar-width);
-  padding: 20px;
-  border-right: 1px solid var(--gemini-border);
-  background: var(--gemini-background);
+  width: var(--mosaic-sidebar-width);
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+}
+
+.sidebar-card {
+  background: white;
+  border-radius: var(--mosaic-radius-lg);
+  box-shadow: var(--mosaic-shadow);
+  padding: 20px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.sidebar-card:hover {
+  box-shadow: var(--mosaic-shadow-md);
 }
 
 .section-title {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
 }
 
 .section-title h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--gemini-text);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--mosaic-text);
+}
+
+.btn-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border-radius: var(--mosaic-radius);
 }
 
 .selected-directory {
   padding: 10px;
-  background: white;
-  border-radius: 8px;
-  border: 1px solid var(--gemini-border);
+  background: var(--mosaic-background);
+  border-radius: var(--mosaic-radius);
   font-size: 14px;
   word-break: break-all;
 }
 
 .directory-path {
-  color: var(--gemini-text-secondary);
+  color: var(--mosaic-text-secondary);
 }
 
 .no-directory {
   padding: 10px;
-  background: white;
-  border-radius: 8px;
-  border: 1px dashed var(--gemini-border);
+  background: var(--mosaic-background);
+  border-radius: var(--mosaic-radius);
   text-align: center;
 }
 
@@ -535,15 +557,23 @@ body {
   display: flex;
   flex-direction: column;
   background: white;
+  border-radius: var(--mosaic-radius-lg);
+  box-shadow: var(--mosaic-shadow);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.chat-area:hover {
+  box-shadow: var(--mosaic-shadow-md);
 }
 
 .chat-messages {
   flex: 1;
-  padding: 24px;
+  padding: 20px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: var(--gemini-message-spacing);
+  gap: var(--mosaic-message-spacing);
 }
 
 .message {
@@ -561,11 +591,14 @@ body {
 }
 
 .message-avatar {
-  flex: 0 0 40px;
-  height: 40px;
+  flex: 0 0 36px;
+  height: 36px;
   border-radius: 50%;
   overflow: hidden;
   margin-right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .message-user .message-avatar {
@@ -573,30 +606,39 @@ body {
   margin-left: 12px;
 }
 
-.message-avatar img {
+.assistant-avatar {
+  background: #eef0ff;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .user-avatar {
   width: 100%;
   height: 100%;
-  background: var(--gemini-primary);
+  background: var(--mosaic-primary);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .message-content {
-  background: var(--gemini-background);
-  border-radius: var(--gemini-radius);
-  padding: 12px 16px;
+  background: var(--mosaic-background);
+  border-radius: var(--mosaic-radius-lg);
+  padding: 16px 20px;
   position: relative;
+  box-shadow: var(--mosaic-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.message-content:hover {
+  box-shadow: var(--mosaic-shadow);
 }
 
 .message-user .message-content {
-  background: var(--gemini-primary);
+  background: var(--mosaic-primary);
   color: white;
 }
 
@@ -608,20 +650,12 @@ body {
 }
 
 .message-sender {
-  font-weight: 500;
-}
-
-.message-user .message-header {
-  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
 }
 
 .message-time {
-  color: var(--gemini-text-secondary);
+  color: var(--mosaic-text-secondary);
   font-size: 11px;
-}
-
-.message-user .message-time {
-  color: rgba(255, 255, 255, 0.8);
 }
 
 .message-body {
@@ -630,27 +664,38 @@ body {
 
 /* 输入区域 */
 .chat-input {
-  padding: 16px 24px;
-  border-top: 1px solid var(--gemini-border);
+  padding: 20px;
+  border-top: 1px solid var(--mosaic-border);
   display: flex;
   gap: 12px;
+  background: white;
 }
 
 .input-field {
-  border-radius: 24px;
-  padding: 12px 16px;
-  border-color: var(--gemini-border);
-  background: var(--gemini-background);
+  border-radius: var(--mosaic-radius-lg);
+  box-shadow: var(--mosaic-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.input-field:hover, .input-field:focus {
+  box-shadow: var(--mosaic-shadow);
 }
 
 .send-btn {
-  border-radius: 50%;
-  width: 44px;
-  height: 44px;
+  border-radius: var(--mosaic-radius);
+  width: 48px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  box-shadow: var(--mosaic-shadow-sm);
+  transition: all 0.2s ease;
+}
+
+.send-btn:hover {
+  box-shadow: var(--mosaic-shadow);
+  transform: translateY(-1px);
 }
 
 /* Mini Empty 样式 */
@@ -667,31 +712,42 @@ body {
 }
 
 /* 模态框样式 */
-.gemini-modal :deep(.ant-modal-content) {
-  border-radius: var(--gemini-radius);
+.mosaic-modal :deep(.ant-modal-content) {
+  border-radius: var(--mosaic-radius-lg);
+  box-shadow: var(--mosaic-shadow-md);
 }
 
-/* 适应Ant Design Vue 3的深度选择器 */
+/* 自定义 Ant Design Vue 样式 */
 :deep(.ant-btn-primary) {
-  background-color: var(--gemini-primary);
-  border-color: var(--gemini-primary);
+  background-color: var(--mosaic-primary);
+  border-color: var(--mosaic-primary);
 }
 
 :deep(.ant-btn-primary:hover),
 :deep(.ant-btn-primary:focus) {
-  background-color: var(--gemini-primary-dark);
-  border-color: var(--gemini-primary-dark);
+  background-color: var(--mosaic-primary-hover);
+  border-color: var(--mosaic-primary-hover);
 }
 
 :deep(.ant-input:focus),
 :deep(.ant-input-affix-wrapper:focus),
 :deep(.ant-input-affix-wrapper-focused) {
-  border-color: var(--gemini-primary);
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  border-color: var(--mosaic-primary);
+  box-shadow: 0 0 0 2px rgba(86, 97, 241, 0.2);
 }
 
 :deep(.ant-picker-focused) {
-  border-color: var(--gemini-primary);
-  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+  border-color: var(--mosaic-primary);
+  box-shadow: 0 0 0 2px rgba(86, 97, 241, 0.2);
+}
+
+:deep(.ant-list-item) {
+  border-radius: var(--mosaic-radius);
+  transition: all 0.2s;
+}
+
+:deep(.ant-list-bordered) {
+  border-radius: var(--mosaic-radius);
+  border: 1px solid var(--mosaic-border);
 }
 </style>

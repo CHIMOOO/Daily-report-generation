@@ -1,5 +1,6 @@
-<script setup>
-import { ref, onMounted } from 'vue'
+<script setup lang="ts">
+import { ref, reactive, defineProps, defineEmits, watch, onMounted } from 'vue'
+import { message } from 'ant-design-vue'
 import {
   saveApiKey,
   isApiKeyConfigured,
@@ -12,11 +13,20 @@ import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons-vue'
 const props = defineProps({
   visible: {
     type: Boolean,
-    default: false,
-  },
+    required: true
+  }
 })
 
 const emit = defineEmits(['update:visible', 'saved'])
+
+const formState = reactive({
+  apiKey: '',
+  apiBaseUrl: 'https://api.deepseek.com',
+  model: 'deepseek-chat'
+})
+
+const saving = ref(false)
+const testing = ref(false)
 
 const apiKey = ref('')
 const selectedModel = ref('')
@@ -35,6 +45,8 @@ onMounted(() => {
 
   // 获取已保存的模型选择
   selectedModel.value = getSelectedModel()
+
+  loadSettings()
 })
 
 // 掩盖API密钥，只显示前4位和后4位
@@ -50,6 +62,7 @@ const showModal = () => {
 }
 
 const handleCancel = () => {
+  loadSettings() // 重置为原始值
   emit('update:visible', false)
 }
 
@@ -58,54 +71,43 @@ const handleModelChange = (value) => {
   selectedModel.value = value
 }
 
-const handleSave = () => {
-  if (!apiKey.value.trim()) {
-    window.message.error('请输入有效的API密钥')
-    return
-  }
-
-  loading.value = true
+const handleSave = async () => {
+  saving.value = true
 
   try {
-    // 保存API密钥到localStorage
-    // 判断是否为掩码形式，如果是则不覆盖原有密钥
-    if (!apiKey.value.includes('*')) {
-      saveApiKey(apiKey.value.trim())
-      window.message.success('API密钥已保存')
-    }
+    // 保存到localStorage
+    localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
+    localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
+    localStorage.setItem('DEEPSEEK_MODEL', formState.model)
 
-    // 保存选定的模型
-    saveSelectedModel(selectedModel.value)
-    window.message.success('设置已保存')
-
-    isApiConfigured.value = true
-    loading.value = false
+    message.success('设置已保存')
+    emit('update:visible', false)
     emit('saved')
-    handleCancel()
-  } catch (error) {
-    console.error('保存设置时出错:', error)
-    window.message.error('保存失败，请重试')
-    loading.value = false
+  } catch (error: any) {
+    console.error('保存设置失败:', error)
+    message.error('保存设置失败')
+  } finally {
+    saving.value = false
   }
 }
 
 // 测试API连接
 const testConnection = async () => {
-  if (!apiKey.value.trim()) {
-    window.message.error('请先输入API密钥')
+  if (!formState.apiKey) {
+    message.error('请先输入API密钥')
     return
   }
 
-  loading.value = true
+  testing.value = true
   try {
-    const response = await fetch('https://api.deepseek.com/chat/completions', {
+    const response = await fetch(`${formState.apiBaseUrl}/chat/completions`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey.value.includes('*') ? localStorage.getItem('deepseek_api_key') : apiKey.value}`,
+        'Authorization': `Bearer ${formState.apiKey}`,
       },
       body: JSON.stringify({
-        model: selectedModel.value,
+        model: formState.model,
         messages: [{ role: 'user', content: '你好' }],
         max_tokens: 5,
       }),
@@ -114,16 +116,35 @@ const testConnection = async () => {
     const data = await response.json()
 
     if (response.ok) {
-      window.message.success('连接成功！API密钥有效')
+      message.success('连接成功！API密钥有效')
     } else {
-      window.message.error(`连接失败: ${data.error?.message || '未知错误'}`)
+      message.error(`连接失败: ${data.error?.message || '未知错误'}`)
     }
-  } catch (error) {
-    window.message.error(`连接测试失败: ${error.message}`)
+  } catch (error: any) {
+    message.error(`连接测试失败: ${error.message || '未知错误'}`)
   } finally {
-    loading.value = false
+    testing.value = false
   }
 }
+
+// 加载当前设置
+const loadSettings = () => {
+  // 从localStorage获取设置
+  const apiKey = localStorage.getItem('DEEPSEEK_API_KEY') || ''
+  const apiBaseUrl = localStorage.getItem('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com'
+  const model = localStorage.getItem('DEEPSEEK_MODEL') || 'deepseek-chat'
+
+  formState.apiKey = apiKey
+  formState.apiBaseUrl = apiBaseUrl
+  formState.model = model
+}
+
+// 监听visible变化
+watch(() => props.visible, (newVal) => {
+  if (newVal) {
+    loadSettings()
+  }
+})
 
 // 暴露方法供父组件调用
 defineExpose({
@@ -134,126 +155,204 @@ defineExpose({
 <template>
   <a-modal
     title="设置"
-    :visible="props.visible"
-    :footer="null"
+    :visible="visible"
     @cancel="handleCancel"
-    :bodyStyle="{
-      background: 'white',
-      borderRadius: '12px',
-      padding: '24px',
-    }"
-    class="gemini-modal"
+    :footer="null"
+    width="500px"
+    class="mosaic-modal"
+    :mask-closable="false"
+    :bodyStyle="{ padding: '20px' }"
   >
-    <div class="mb-4">
-      <h3 class="text-lg font-medium mb-2">API密钥配置</h3>
-      <p class="text-gray-600 text-sm mb-4">
-        请配置DeepSeek API密钥以启用日报生成功能
-      </p>
-    </div>
-
-    <a-form layout="vertical">
-      <a-form-item label="DeepSeek API密钥" required>
-        <a-input-password
-          v-model:value="apiKey"
-          placeholder="请输入DeepSeek API密钥"
-          class="rounded-lg"
-        />
-        <div class="mt-2 text-gray-500 text-sm flex items-center">
-          <InfoCircleOutlined class="mr-2" />
-          获取API密钥请访问:
-          <a
-            href="https://platform.deepseek.com"
-            target="_blank"
-            class="text-blue-600 hover:text-blue-700 ml-1"
-            >DeepSeek平台</a
-          >
-        </div>
-      </a-form-item>
-
-      <a-form-item label="选择模型">
-        <a-select
-          v-model:value="selectedModel"
-          placeholder="请选择模型"
-          class="w-full rounded-lg"
-          @change="handleModelChange"
-        >
-          <a-select-option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id">
-            <div class="flex flex-col">
-              <span class="font-medium">{{ model.name }}</span>
-              <span class="text-xs text-gray-500">{{ model.description }}</span>
+    <div class="settings-container">
+      <div class="settings-section">
+        <h3 class="section-title">DeepSeek API配置</h3>
+        <a-form :model="formState" layout="vertical">
+          <a-form-item label="API密钥" name="apiKey" required>
+            <a-input-password
+              v-model:value="formState.apiKey"
+              placeholder="请输入DeepSeek API密钥"
+              allowClear
+            />
+            <div class="form-item-help">
+              获取API密钥请访问 <a href="https://platform.deepseek.com/api_keys" target="_blank">DeepSeek平台</a>
             </div>
-          </a-select-option>
-        </a-select>
-      </a-form-item>
-
-      <div class="security-note mt-4 text-sm text-gray-500 mb-6 border-l-4 border-blue-200 pl-3 py-2 bg-blue-50 rounded">
-        <LockOutlined class="mr-1" />
-        安全提示：API密钥将安全存储在本地浏览器中，不会上传到任何服务器
+          </a-form-item>
+          
+          <a-form-item label="API Base URL" name="apiBaseUrl">
+            <a-input
+              v-model:value="formState.apiBaseUrl"
+              placeholder="默认: https://api.deepseek.com"
+              allowClear
+            />
+          </a-form-item>
+          
+          <a-form-item label="模型" name="model">
+            <a-select v-model:value="formState.model">
+              <a-select-option value="deepseek-chat">DeepSeek-V3 (deepseek-chat)</a-select-option>
+              <a-select-option value="deepseek-reasoner">DeepSeek-R1 (deepseek-reasoner)</a-select-option>
+              <a-select-option value="deepseek-coder">DeepSeek-Coder</a-select-option>
+            </a-select>
+          </a-form-item>
+          
+          <div class="test-connection">
+            <a-button @click="testConnection" :loading="testing" type="default" block>
+              测试连接
+            </a-button>
+          </div>
+        </a-form>
       </div>
 
-      <div class="flex justify-between mt-6">
-        <a-button @click="testConnection" :loading="loading">
-          测试连接
+      <div class="footer-actions">
+        <a-button 
+          @click="handleCancel"
+          class="cancel-button"
+        >
+          取消
         </a-button>
-        <div>
-          <a-button class="mr-2" @click="handleCancel">
-            取消
-          </a-button>
-          <a-button type="primary" @click="handleSave" :loading="loading">
-            保存
-          </a-button>
-        </div>
+        <a-button 
+          type="primary" 
+          @click="handleSave"
+          :loading="saving"
+        >
+          保存
+        </a-button>
       </div>
-    </a-form>
+    </div>
   </a-modal>
 </template>
 
 <style scoped>
-.gemini-modal :deep(.ant-modal-content) {
+.settings-container {
+  padding: 0;
+}
+
+.settings-section {
+  margin-bottom: 24px;
+  background-color: var(--mosaic-background);
+  padding: 20px;
   border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--mosaic-text);
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.form-item-help {
+  font-size: 12px;
+  color: var(--mosaic-text-secondary);
+  margin-top: 4px;
+}
+
+.form-item-help a {
+  color: var(--mosaic-primary);
+  text-decoration: none;
+}
+
+.test-connection {
+  margin-top: 12px;
+  margin-bottom: 16px;
+}
+
+.footer-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.cancel-button {
+  margin-right: 8px;
+}
+
+:deep(.ant-form-item-label) {
+  font-weight: 500;
+}
+
+:deep(.ant-form-item) {
+  margin-bottom: 20px;
+}
+
+:deep(.ant-input),
+:deep(.ant-input-password),
+:deep(.ant-select:not(.ant-select-customize-input) .ant-select-selector) {
+  border-radius: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+  border-color: var(--mosaic-border);
+  padding: 8px 16px;
+  height: auto;
+}
+
+:deep(.ant-input-affix-wrapper) {
+  padding: 0 16px;
+  border-radius: 12px;
+}
+
+:deep(.ant-input-affix-wrapper input) {
+  height: 38px;
+}
+
+:deep(.ant-select-selector) {
+  height: 38px !important;
+  padding: 0 16px !important;
+}
+
+:deep(.ant-select-selection-item) {
+  line-height: 38px !important;
+}
+
+:deep(.ant-input:focus),
+:deep(.ant-input-password:focus),
+:deep(.ant-input-focused),
+:deep(.ant-input-affix-wrapper-focused),
+:deep(.ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector) {
+  border-color: var(--mosaic-primary);
+  box-shadow: 0 0 0 2px rgba(86, 97, 241, 0.15);
+}
+
+:deep(.ant-btn) {
+  border-radius: 12px;
+  height: 40px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03);
+  font-weight: 500;
+}
+
+:deep(.ant-btn-primary) {
+  box-shadow: 0 4px 10px rgba(86, 97, 241, 0.2);
+}
+
+:deep(.ant-modal-content) {
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
 
-.gemini-modal :deep(.ant-modal-header) {
-  background-color: #f9fafb;
-  padding: 16px 24px;
-  border-bottom: 1px solid #f3f4f6;
+:deep(.ant-modal-header) {
+  padding: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
 }
 
-.gemini-modal :deep(.ant-modal-title) {
-  font-weight: 600;
+:deep(.ant-modal-title) {
   font-size: 18px;
-  color: #1f2937;
+  font-weight: 600;
 }
 
-.gemini-modal :deep(.ant-input),
-.gemini-modal :deep(.ant-input-password) {
-  border-radius: 8px;
-  padding: 10px 12px;
-  border-color: #e5e7eb;
+:deep(.ant-modal-close) {
+  top: 20px;
+  right: 20px;
 }
 
-.gemini-modal :deep(.ant-select-selector) {
-  border-radius: 8px !important;
-  padding: 6px 12px !important;
-  height: auto !important;
-  min-height: 42px;
+:deep(.ant-modal-close-x) {
+  width: 40px;
+  height: 40px;
+  line-height: 40px;
 }
 
-.gemini-modal :deep(.ant-btn) {
-  border-radius: 8px;
-  padding: 6px 16px;
-  height: auto;
-  min-height: 38px;
-}
-
-.gemini-modal :deep(.ant-btn-primary) {
-  background-color: #1a73e8;
-  border-color: #1a73e8;
-}
-
-.gemini-modal :deep(.ant-btn-primary:hover) {
-  background-color: #1967d2;
-  border-color: #1967d2;
+:deep(.ant-modal-body) {
+  padding: 24px;
 }
 </style> 
