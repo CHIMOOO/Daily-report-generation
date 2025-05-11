@@ -184,8 +184,11 @@ const addToRecentDirectories = (dir: string) => {
     recentDirectories.value.pop()
   }
 
-  // 保存到localStorage
+  // 保存到localStorage - 最近目录列表
   localStorage.setItem('recent_directories', JSON.stringify(recentDirectories.value))
+  
+  // 保存当前选择的目录
+  localStorage.setItem('last_directory', dir)
 }
 
 // 选择目录
@@ -230,8 +233,28 @@ onMounted(() => {
   if (savedDirectories) {
     try {
       recentDirectories.value = JSON.parse(savedDirectories)
+      
+      // 如果有最近使用的目录，自动选择第一个
+      if (recentDirectories.value.length > 0) {
+        // 检查目录是否存在
+        const lastUsedDirectory = recentDirectories.value[0]
+        directoryPath.value = lastUsedDirectory
+        console.log('自动加载上次使用的目录:', lastUsedDirectory)
+      }
     } catch (e) {
       console.error('加载最近目录失败:', e)
+    }
+  }
+  
+  // 从localStorage加载上次选择的具体目录
+  const lastDirectory = localStorage.getItem('last_directory')
+  if (lastDirectory && (!directoryPath.value || directoryPath.value !== lastDirectory)) {
+    directoryPath.value = lastDirectory
+    console.log('从last_directory加载目录:', lastDirectory)
+    
+    // 确保该目录在最近目录列表中
+    if (!recentDirectories.value.includes(lastDirectory)) {
+      addToRecentDirectories(lastDirectory)
     }
   }
 

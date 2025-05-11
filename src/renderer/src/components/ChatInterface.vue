@@ -153,6 +153,34 @@ const generateDefaultReport = async () => {
   const promptMessage = `请生成${getFormattedDate()}的日报`;
   addMessage('system', promptMessage, systemMessageId);
   
+  // 获取Git提交记录
+  try {
+    const { getDetailedCommitsForDate } = await import('../services/gitService');
+    const commits = await getDetailedCommitsForDate(props.directoryPath, getStandardDate());
+    
+    // 如果有提交记录，显示一下详情
+    if (commits && commits.length > 0) {
+      const commitsPreviewId = Date.now().toString() + "-preview";
+      
+      // 格式化预览信息
+      let previewContent = `找到 ${commits.length} 条提交记录:\n\n`;
+      commits.forEach((commit, index) => {
+        previewContent += `${index + 1}. ${commit.hash.substring(0, 7)} - ${commit.message} (${commit.author})\n`;
+        previewContent += `   修改了 ${commit.files.length} 个文件\n`;
+      });
+      
+      // 添加预览消息
+      addMessage('system', previewContent, commitsPreviewId);
+    } else {
+      addMessage('system', `${getFormattedDate()}没有找到Git提交记录。`, Date.now().toString() + "-no-commits");
+    }
+  } catch (error: any) {
+    console.error('获取Git提交记录失败:', error);
+    const errorMessageId = Date.now().toString() + "-error";
+    addMessage('system', `获取Git提交记录失败: ${error.message}`, errorMessageId);
+    // 尽管无法获取Git记录，仍然继续尝试生成日报
+  }
+  
   // 添加AI思考消息
   const aiMessageId = (Date.now() + 1).toString();
   thinking.value = true;
@@ -199,6 +227,83 @@ const generateDefaultReport = async () => {
     thinking.value = false;
     streaming.value = false;
     emit('update:loading', false);
+  }
+};
+
+// 显示Git提交详情
+const showGitDetails = async () => {
+  if (!props.directoryPath) {
+    message.error('请先选择代码库目录');
+    return;
+  }
+  
+  // 添加加载消息
+  const loadingMessageId = Date.now().toString();
+  addMessage('system', '正在获取Git提交详情...', loadingMessageId);
+  
+  try {
+    // 显示诊断信息
+    const diagnosticInfo = `
+## 诊断信息
+- 操作系统: ${navigator.platform}
+- 当前日期: ${getFormattedDate()}
+- 目录路径: ${props.directoryPath}
+- 应用类型: ${window.electron ? 'Electron' : '浏览器'}
+`;
+    
+    // 更新加载消息以显示诊断信息
+    const diagMessageId = loadingMessageId + "-diag";
+    addMessage('system', diagnosticInfo, diagMessageId);
+    
+    // 正常获取Git提交记录
+    const { getDetailedCommitsForDate } = await import('../services/gitService');
+    const commits = await getDetailedCommitsForDate(props.directoryPath, getStandardDate());
+    
+    // 更新加载消息
+    const messageIndex = findMessageIndexById(loadingMessageId);
+    
+    if (commits && commits.length > 0) {
+      // 格式化详细信息
+      let detailContent = `## ${getFormattedDate()} 的 Git 提交详情\n\n`;
+      
+      commits.forEach((commit, index) => {
+        detailContent += `### 提交 ${index + 1}: ${commit.hash.substring(0, 7)}\n`;
+        detailContent += `- 作者: ${commit.author}\n`;
+        detailContent += `- 信息: ${commit.message}\n`;
+        detailContent += `- 修改文件统计:\n\`\`\`\n${commit.diffStat}\n\`\`\`\n\n`;
+        
+        // 添加文件修改内容摘要
+        if (commit.fileChanges && commit.fileChanges.length > 0) {
+          detailContent += `#### 主要修改内容:\n`;
+          commit.fileChanges.forEach(fileChange => {
+            detailContent += `##### 文件: ${fileChange.file}\n\`\`\`diff\n${fileChange.changes}\n\`\`\`\n\n`;
+          });
+        }
+        
+        detailContent += `---\n\n`;
+      });
+      
+      // 更新消息内容
+      if (messageIndex !== -1) {
+        messages[messageIndex].content = detailContent;
+      }
+    } else {
+      // 更新消息内容
+      if (messageIndex !== -1) {
+        messages[messageIndex].content = `${getFormattedDate()} 没有Git提交记录。`;
+      }
+    }
+  } catch (error: any) {
+    console.error('获取Git提交详情失败:', error);
+    
+    // 显示详细错误信息
+    const messageIndex = findMessageIndexById(loadingMessageId);
+    if (messageIndex !== -1) {
+      messages[messageIndex].content = `获取Git提交详情失败: ${error.message}`;
+    }
+    
+    // 同时显示错误提示
+    message.error(`获取Git提交详情失败: ${error.message}`);
   }
 };
 
@@ -373,13 +478,22 @@ onMounted(() => {
       </div>
       <div class="input-tips">
         <span>Ctrl + Enter 发送</span>
-        <a-button
-          type="link"
-          @click="generateDefaultReport"
-          :disabled="loading || !props.directoryPath"
-        >
-          生成默认日报
-        </a-button>
+        <div class="action-buttons">
+          <a-button
+            type="link"
+            @click="showGitDetails"
+            :disabled="loading || !props.directoryPath"
+          >
+            查看Git详情
+          </a-button>
+          <a-button
+            type="link"
+            @click="generateDefaultReport"
+            :disabled="loading || !props.directoryPath"
+          >
+            生成默认日报
+          </a-button>
+        </div>
       </div>
     </div>
   </div>
@@ -594,5 +708,10 @@ onMounted(() => {
   justify-content: space-between;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.45);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
 }
 </style> 

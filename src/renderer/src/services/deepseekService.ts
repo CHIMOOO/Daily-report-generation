@@ -117,17 +117,52 @@ export async function generateDayReport({ gitPath, date, customPrompt = '' }) {
     const apiBaseUrl = getApiBaseUrl()
     const model = getSelectedModel()
     const defaultPrompt = getDefaultPrompt()
+    
+    // 获取Git提交记录
+    const { getDetailedCommitsForDate } = await import('./gitService')
+    const commits = await getDetailedCommitsForDate(gitPath, date)
+    
+    // 输出提交记录到控制台，方便调试
+    console.log(`[生成日报] 获取到 ${commits.length} 条提交记录:`, commits)
+    
+    // 格式化Git提交记录
+    let formattedCommits = ''
+    if (commits.length > 0) {
+      formattedCommits = `以下是${date.toLocaleDateString('zh-CN')}的Git提交记录：\n\n`
+      
+      commits.forEach((commit, index) => {
+        formattedCommits += `提交 ${index + 1}: ${commit.hash.substring(0, 7)} - ${commit.message} (${commit.author})\n`
+        formattedCommits += `修改的文件:\n${commit.diffStat}\n\n`
+        
+        // 添加文件修改内容摘要
+        if (commit.fileChanges && commit.fileChanges.length > 0) {
+          formattedCommits += `主要修改内容:\n`
+          commit.fileChanges.forEach(fileChange => {
+            formattedCommits += `文件: ${fileChange.file}\n修改内容摘要:\n\`\`\`\n${fileChange.changes}\n\`\`\`\n\n`
+          })
+        }
+        
+        formattedCommits += `---\n`
+      })
+    } else {
+      formattedCommits = `${date.toLocaleDateString('zh-CN')}没有Git提交记录。`
+    }
 
     // 构建系统提示词
-    const systemPrompt = `你是一个帮助生成日报的AI助手。请根据用户提供的Git代码仓库路径和日期，生成一份简洁的工作日报。
+    const systemPrompt = `你是一个帮助生成日报的AI助手。请根据用户提供的Git代码仓库路径、日期和提交记录，生成一份详细的工作日报。
 日期: ${date.toLocaleDateString('zh-CN')}
 代码库路径: ${gitPath}`
 
     // 构建用户提示词
-    let userPrompt = defaultPrompt
+    let userPrompt = defaultPrompt + "\n\n" + formattedCommits
     if (customPrompt) {
       userPrompt += `\n其他信息：${customPrompt}`
     }
+    
+    console.log('[生成日报] 发送给AI的提示词:', {
+      系统提示词: systemPrompt,
+      用户提示词摘要: userPrompt.substring(0, 100) + '...'
+    })
 
     // 请求参数
     const requestBody = {
@@ -136,7 +171,7 @@ export async function generateDayReport({ gitPath, date, customPrompt = '' }) {
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      max_tokens: 1000,
+      max_tokens: 2000,
       temperature: 0.7
     }
 

@@ -54,7 +54,7 @@
   }
 
   .chat-messages {
-    @apply flex-1 p-6 overflow-y-auto flex flex-col;
+    @apply flex-1 p-6 overflow-y-auto flex flex-col border border-gray-200;
     gap: var(--gemini-message-spacing);
   }
 

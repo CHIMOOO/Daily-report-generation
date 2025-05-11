@@ -8,7 +8,7 @@ import {
   getDefaultPrompt,
   saveDefaultPrompt
 } from '../services/deepseekService'
-import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons-vue'
+import { InfoCircleOutlined, LockOutlined, FolderOutlined } from '@ant-design/icons-vue'
 
 const props = defineProps({
   visible: {
@@ -23,7 +23,8 @@ const formState = reactive({
   apiKey: '',
   apiBaseUrl: 'https://api.deepseek.com',
   model: 'deepseek-chat',
-  defaultPrompt: ''
+  defaultPrompt: '',
+  defaultDirectory: ''
 })
 
 const saving = ref(false)
@@ -63,11 +64,16 @@ onMounted(async () => {
           formState.defaultPrompt = result.settings.DEFAULT_PROMPT
         }
         
+        if (result.settings.DEFAULT_DIRECTORY) {
+          formState.defaultDirectory = result.settings.DEFAULT_DIRECTORY
+        }
+        
         // 同时更新localStorage
         localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
         localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
         localStorage.setItem('DEEPSEEK_MODEL', formState.model)
         localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
+        localStorage.setItem('last_directory', formState.defaultDirectory)
         
         console.log('已从文件系统更新设置')
       }
@@ -99,6 +105,23 @@ const handleModelChange = (value) => {
   selectedModel.value = value
 }
 
+// 选择默认目录
+const selectDefaultDirectory = async () => {
+  if (window.electron) {
+    try {
+      const result = await window.electron.ipcRenderer.invoke('dialog:openDirectory')
+      if (result && !result.canceled && result.filePaths.length > 0) {
+        formState.defaultDirectory = result.filePaths[0]
+      }
+    } catch (error) {
+      console.error('选择目录失败:', error)
+      message.error('选择目录失败')
+    }
+  } else {
+    message.warning('当前环境不支持目录选择，请直接输入目录路径')
+  }
+}
+
 const handleSave = async () => {
   saving.value = true
 
@@ -109,13 +132,15 @@ const handleSave = async () => {
         'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
         'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL'),
-        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT')
+        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT'),
+        'DEFAULT_DIRECTORY': localStorage.getItem('last_directory')
       },
       'API访问': window.api?.localStorage ? {
         'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
         'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL'),
-        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT')
+        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT'),
+        'DEFAULT_DIRECTORY': window.api.localStorage.getItem('last_directory')
       } : '不可用'
     })
     
@@ -123,7 +148,8 @@ const handleSave = async () => {
       apiKey: formState.apiKey,
       apiBaseUrl: formState.apiBaseUrl,
       model: formState.model,
-      defaultPrompt: formState.defaultPrompt
+      defaultPrompt: formState.defaultPrompt,
+      defaultDirectory: formState.defaultDirectory
     })
 
     // 尝试通过常规方式保存到localStorage
@@ -131,6 +157,7 @@ const handleSave = async () => {
     localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
     localStorage.setItem('DEEPSEEK_MODEL', formState.model)
     localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
+    localStorage.setItem('last_directory', formState.defaultDirectory)
     
     // 如果window.api.localStorage可用，也通过API保存
     if (window.api?.localStorage) {
@@ -138,6 +165,7 @@ const handleSave = async () => {
       window.api.localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
       window.api.localStorage.setItem('DEEPSEEK_MODEL', formState.model)
       window.api.localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
+      window.api.localStorage.setItem('last_directory', formState.defaultDirectory)
     }
 
     // 验证保存是否成功
@@ -146,13 +174,15 @@ const handleSave = async () => {
         'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
         'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL'),
-        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT')
+        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT'),
+        'DEFAULT_DIRECTORY': localStorage.getItem('last_directory')
       },
       'API访问': window.api?.localStorage ? {
         'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
         'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL'),
-        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT')
+        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT'),
+        'DEFAULT_DIRECTORY': window.api.localStorage.getItem('last_directory')
       } : '不可用'
     })
 
@@ -163,7 +193,8 @@ const handleSave = async () => {
           DEEPSEEK_API_KEY: formState.apiKey,
           DEEPSEEK_API_BASE_URL: formState.apiBaseUrl,
           DEEPSEEK_MODEL: formState.model,
-          DEFAULT_PROMPT: formState.defaultPrompt
+          DEFAULT_PROMPT: formState.defaultPrompt,
+          DEFAULT_DIRECTORY: formState.defaultDirectory
         })
         console.log('通过IPC保存设置成功')
       }
@@ -242,15 +273,11 @@ const testConnection = async () => {
 // 加载当前设置
 const loadSettings = () => {
   // 从localStorage获取设置
-  const apiKey = localStorage.getItem('DEEPSEEK_API_KEY') || ''
-  const apiBaseUrl = localStorage.getItem('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com'
-  const model = localStorage.getItem('DEEPSEEK_MODEL') || 'deepseek-chat'
-  const defaultPrompt = localStorage.getItem('DEFAULT_PROMPT') || '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
-
-  formState.apiKey = apiKey
-  formState.apiBaseUrl = apiBaseUrl
-  formState.model = model
-  formState.defaultPrompt = defaultPrompt
+  formState.apiKey = localStorage.getItem('DEEPSEEK_API_KEY') || ''
+  formState.apiBaseUrl = localStorage.getItem('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com'
+  formState.model = localStorage.getItem('DEEPSEEK_MODEL') || 'deepseek-chat'
+  formState.defaultPrompt = localStorage.getItem('DEFAULT_PROMPT') || '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
+  formState.defaultDirectory = localStorage.getItem('last_directory') || ''
 }
 
 // 监听visible变化
@@ -316,6 +343,20 @@ defineExpose({
             />
             <div class="form-item-help">
               配置默认提示词，指导AI如何详细生成日报内容
+            </div>
+          </a-form-item>
+          
+          <a-form-item label="默认代码库目录" name="defaultDirectory">
+            <div class="directory-input-group">
+              <a-input
+                v-model:value="formState.defaultDirectory"
+                placeholder="输入默认代码库目录"
+                allowClear
+              />
+              <a-button type="primary" @click="selectDefaultDirectory">
+                <template #icon><FolderOutlined /></template>
+                浏览
+              </a-button>
             </div>
           </a-form-item>
           
@@ -479,5 +520,38 @@ defineExpose({
 
 :deep(.ant-modal-body) {
   padding: 24px;
+}
+
+.prompt-area {
+  margin-bottom: 16px;
+}
+
+.api-key-wrapper {
+  position: relative;
+}
+
+.model-select {
+  width: 100%;
+}
+
+.test-connection {
+  margin: 16px 0;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.security-tip {
+  color: #999;
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+.directory-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.directory-input-group .ant-input {
+  flex: 1;
 }
 </style> 

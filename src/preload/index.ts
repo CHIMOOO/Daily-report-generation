@@ -36,6 +36,11 @@ const api = {
     return ipcRenderer.invoke('git:getRecentCommits', { repoPath, days })
   },
   
+  // 获取指定日期的详细Git提交记录（包含文件变更内容）
+  getDetailedGitCommits: (repoPath: string, date: Date) => {
+    return ipcRenderer.invoke('git:getDetailedCommits', { repoPath, date: date.toISOString() })
+  },
+  
   // 直接操作localStorage的方法，确保在Electron中正确工作
   localStorage: {
     getItem: (key: string) => {
@@ -100,7 +105,8 @@ if (process.contextIsolated) {
             'settings:save',
             'settings:load',
             'git:getCommits',
-            'git:getRecentCommits'
+            'git:getRecentCommits',
+            'git:getDetailedCommits'
           ]
           if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, ...args)

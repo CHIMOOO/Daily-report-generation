@@ -132,7 +132,7 @@ function registerIpcHandlers(): void {
       
       // 解析Git提交记录
       return parseGitCommits(stdout)
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取Git提交记录失败:', error)
       throw new Error(`无法获取Git提交记录: ${error.message}`)
     }
@@ -153,9 +153,158 @@ function registerIpcHandlers(): void {
       
       // 解析Git提交记录
       return parseGitCommits(stdout)
-    } catch (error) {
+    } catch (error: any) {
       console.error('获取最近Git提交记录失败:', error)
       throw new Error(`无法获取最近Git提交记录: ${error.message}`)
+    }
+  })
+
+  // 获取指定日期的详细Git提交记录（包含文件变更详情）
+  ipcMain.handle('git:getDetailedCommits', async (_, args) => {
+    const { repoPath, date } = args
+    
+    try {
+      // 检查目录是否存在
+      try {
+        await fsAccess(repoPath, fs.constants.R_OK)
+      } catch (accessError: any) {
+        throw new Error(`目录访问错误：${accessError.message} (${repoPath})`)
+      }
+      
+      // 解析日期
+      const targetDate = new Date(date)
+      const formattedDate = targetDate.toISOString().split('T')[0]
+      
+      console.log(`[Git服务] 获取 ${repoPath} 在 ${formattedDate} 的详细提交记录`)
+      
+      // 检测操作系统
+      const isWindows = process.platform === 'win32'
+      console.log(`[Git服务] 当前操作系统: ${isWindows ? 'Windows' : 'Non-Windows'}`)
+      
+      // 检查目录是否是Git仓库
+      try {
+        const { stdout: gitStatus } = await execAsync(`git -C "${repoPath}" rev-parse --is-inside-work-tree`)
+        if (gitStatus.trim() !== 'true') {
+          throw new Error('不是有效的Git仓库')
+        }
+      } catch (gitError: any) {
+        throw new Error(`Git仓库验证失败: ${gitError.message || '目录不是有效的Git仓库'}`)
+      }
+
+      // 适用于所有平台的基本git命令（无管道和特殊字符）
+      // 1. 获取指定日期的提交哈希列表
+      const commitListCmd = `git -C "${repoPath}" log --after="${formattedDate} 00:00:00" --before="${formattedDate} 23:59:59" --pretty=format:"%H"`
+      console.log(`[Git服务] 执行命令: ${commitListCmd}`)
+      
+      let commitList
+      try {
+        const result = await execAsync(commitListCmd)
+        commitList = result.stdout
+      } catch (cmdError: any) {
+        throw new Error(`获取提交列表失败: ${cmdError.message || '未知错误'}`)
+      }
+      
+      // 如果没有提交，返回空数组
+      if (!commitList.trim()) {
+        console.log(`[Git服务] 未找到提交记录`)
+        return []
+      }
+      
+      // 解析提交哈希列表
+      const commitHashes = commitList.trim().split('\n')
+      console.log(`[Git服务] 找到 ${commitHashes.length} 个提交`)
+      
+      // 2. 创建详细提交记录数组
+      interface FileChange {
+        file: string;
+        changes: string;
+      }
+      
+      interface Commit {
+        hash: string;
+        author: string;
+        date: string;
+        message: string;
+        files: string[];
+        diffStat: string;
+        fileChanges: FileChange[];
+        diff?: string;
+      }
+      
+      const commits: Commit[] = []
+      
+      // 3. 为每个提交获取详细信息
+      for (const hash of commitHashes) {
+        try {
+          // 获取基本提交信息 (作者、日期、消息)
+          const commitInfoCmd = `git -C "${repoPath}" show --no-patch --pretty=format:"%H|%an|%ad|%s" ${hash}`
+          console.log(`[Git服务] 执行命令: ${commitInfoCmd}`)
+          
+          const { stdout: commitInfo } = await execAsync(commitInfoCmd)
+          const [commitHash, author, commitDate, message] = commitInfo.trim().split('|')
+          
+          // 获取修改的文件列表
+          const filesCmd = `git -C "${repoPath}" show --pretty="" --name-only ${hash}`
+          console.log(`[Git服务] 执行命令: ${filesCmd}`)
+          
+          const { stdout: filesOutput } = await execAsync(filesCmd)
+          const files = filesOutput.trim().split('\n').filter(f => f.trim() !== '')
+          
+          // 获取提交中更改的文件和变更统计
+          const diffStatCmd = `git -C "${repoPath}" show --stat --format="" ${hash}`
+          console.log(`[Git服务] 执行命令: ${diffStatCmd}`)
+          
+          const { stdout: diffStat } = await execAsync(diffStatCmd)
+          
+          // 创建提交对象
+          const commit: Commit = {
+            hash: commitHash,
+            author,
+            date: commitDate,
+            message,
+            files,
+            diffStat: diffStat.trim(),
+            fileChanges: []
+          }
+          
+          // 获取每个文件的修改内容摘要
+          for (const file of files) {
+            try {
+              // 使用git show获取文件差异，无需grep或findstr
+              const fileChangeCmd = `git -C "${repoPath}" show --pretty=format:"" --unified=1 ${hash} -- "${file}"`
+              console.log(`[Git服务] 执行命令: ${fileChangeCmd}`)
+              
+              const { stdout: fileChangeOutput } = await execAsync(fileChangeCmd)
+              
+              // 手动提取增删行
+              const diffLines = fileChangeOutput.split('\n')
+              const changesLines = diffLines.filter(line => 
+                line.startsWith('+') && !line.startsWith('+++') || 
+                line.startsWith('-') && !line.startsWith('---')
+              ).slice(0, 10) // 最多10行
+              
+              if (changesLines.length > 0) {
+                commit.fileChanges.push({
+                  file,
+                  changes: changesLines.join('\n')
+                })
+              }
+            } catch (fileError) {
+              console.warn(`[Git服务] 获取文件 ${file} 的变更摘要失败:`, fileError)
+            }
+          }
+          
+          commits.push(commit)
+        } catch (commitError) {
+          console.error(`[Git服务] 处理提交 ${hash} 时出错:`, commitError)
+        }
+      }
+      
+      console.log(`[Git服务] 成功获取 ${commits.length} 条详细提交记录`)
+      return commits
+    } catch (error: any) {
+      console.error('[Git服务] 获取详细Git提交记录失败:', error)
+      throw new Error(`无法获取详细Git提交记录: ${error.message}`)
     }
   })
 
@@ -344,7 +493,8 @@ function registerIpcHandlers(): void {
             DEEPSEEK_API_KEY: '',
             DEEPSEEK_API_BASE_URL: 'https://api.deepseek.com',
             DEEPSEEK_MODEL: 'deepseek-chat',
-            DEFAULT_PROMPT: '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
+            DEFAULT_PROMPT: '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。',
+            DEFAULT_DIRECTORY: ''
           } 
         }
       }
