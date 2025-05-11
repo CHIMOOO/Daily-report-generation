@@ -4,6 +4,7 @@ import { message } from 'ant-design-vue'
 import { generateDayReport, isApiKeyConfigured } from './services/deepseekService'
 import { getCommitsForDate } from './services/gitService'
 import SettingsModal from './components/SettingsModal.vue'
+import ChatInterface from './components/ChatInterface.vue'
 import { SettingOutlined, FolderOpenOutlined, FolderOutlined, SendOutlined } from '@ant-design/icons-vue'
 import zhCN from 'ant-design-vue/es/locale/zh_CN'
 import dayjs, { type Dayjs } from 'dayjs'
@@ -207,6 +208,21 @@ const addCustomDirectory = () => {
   }
 }
 
+// 处理聊天组件的加载状态变化
+const handleLoadingChange = (isLoading: boolean) => {
+  loading.value = isLoading
+}
+
+// 处理消息发送事件
+const handleMessageSent = (content: string) => {
+  console.log('发送消息:', content)
+}
+
+// 处理消息接收事件
+const handleMessageReceived = (content: string) => {
+  console.log('接收消息:', content)
+}
+
 // 组件挂载时加载数据
 onMounted(() => {
   // 从localStorage加载最近使用的目录
@@ -297,60 +313,15 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 聊天区域 -->
-        <div class="chat-area">
-          <div class="chat-messages">
-            <!-- 消息列表 -->
-            <div
-              v-for="msg in messages"
-              :key="msg.id"
-              :class="['message', `message-${msg.role}`]"
-            >
-              <div class="message-avatar">
-                <div v-if="msg.role === 'assistant'" class="assistant-avatar">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM12 5C13.66 5 15 6.34 15 8C15 9.66 13.66 11 12 11C10.34 11 9 9.66 9 8C9 6.34 10.34 5 12 5ZM12 19.2C9.5 19.2 7.29 17.92 6 15.98C6.03 13.99 10 12.9 12 12.9C13.99 12.9 17.97 13.99 18 15.98C16.71 17.92 14.5 19.2 12 19.2Z" fill="#5661F1"/>
-                  </svg>
-                </div>
-                <div v-else class="user-avatar">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 12C14.2091 12 16 10.2091 16 8C16 5.79086 14.2091 4 12 4C9.79086 4 8 5.79086 8 8C8 10.2091 9.79086 12 12 12Z" fill="#fff"/>
-                    <path d="M12 14C8.13401 14 5 17.134 5 21H19C19 17.134 15.866 14 12 14Z" fill="#fff"/>
-                  </svg>
-                </div>
-              </div>
-              <div class="message-content">
-                <div class="message-header">
-                  <span class="message-sender">{{ msg.role === 'assistant' ? '日报助手' : '我' }}</span>
-                  <span class="message-time">{{ new Date(msg.time).toLocaleTimeString() }}</span>
-                </div>
-                <div class="message-body">
-                  {{ msg.content }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 输入区域 -->
-          <div class="chat-input">
-            <a-input
-              v-model:value="userInput"
-              placeholder="输入提示信息，例如'添加今天参加了团队会议'..."
-              :disabled="loading"
-              @pressEnter="handleUserInput"
-              class="input-field"
-            />
-            <a-button
-              type="primary"
-              @click="handleUserInput"
-              :loading="loading"
-              :disabled="!userInput.trim() || loading"
-              class="send-btn"
-            >
-              <template #icon><SendOutlined /></template>
-            </a-button>
-          </div>
-        </div>
+        <!-- 聊天区域 - 使用新的ChatInterface组件 -->
+        <ChatInterface
+          :directoryPath="directoryPath"
+          :selectedDate="selectedDate"
+          :loading="loading"
+          @update:loading="handleLoadingChange"
+          @message-sent="handleMessageSent"
+          @message-received="handleMessageReceived"
+        />
       </main>
 
       <!-- 设置对话框 -->
@@ -581,155 +552,6 @@ body {
   margin-top: auto;
 }
 
-/* 聊天区域 */
-.chat-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  background: white;
-  border-radius: var(--mosaic-radius-lg);
-  box-shadow: var(--mosaic-shadow);
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.chat-area:hover {
-  box-shadow: var(--mosaic-shadow-md);
-}
-
-.chat-messages {
-  flex: 1;
-  padding: 20px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--mosaic-message-spacing);
-}
-
-.message {
-  display: flex;
-  max-width: 85%;
-}
-
-.message-assistant {
-  align-self: flex-start;
-}
-
-.message-user {
-  align-self: flex-end;
-  flex-direction: row-reverse;
-}
-
-.message-avatar {
-  flex: 0 0 36px;
-  height: 36px;
-  border-radius: 50%;
-  overflow: hidden;
-  margin-right: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.message-user .message-avatar {
-  margin-right: 0;
-  margin-left: 12px;
-}
-
-.assistant-avatar {
-  background: #eef0ff;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.user-avatar {
-  width: 100%;
-  height: 100%;
-  background: var(--mosaic-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.message-content {
-  background: var(--mosaic-background);
-  border-radius: var(--mosaic-radius-lg);
-  padding: 16px 20px;
-  position: relative;
-  box-shadow: var(--mosaic-shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.message-content:hover {
-  box-shadow: var(--mosaic-shadow);
-}
-
-.message-user .message-content {
-  background: var(--mosaic-primary);
-  color: white;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 4px;
-  font-size: 12px;
-}
-
-.message-sender {
-  font-weight: 600;
-}
-
-.message-time {
-  color: var(--mosaic-text-secondary);
-  font-size: 11px;
-}
-
-.message-body {
-  white-space: pre-wrap;
-  line-height: 1.6;
-  word-break: break-all;
-}
-
-/* 输入区域 */
-.chat-input {
-  padding: 20px;
-  border-top: 1px solid var(--mosaic-border);
-  display: flex;
-  gap: 12px;
-  background: white;
-}
-
-.input-field {
-  border-radius: var(--mosaic-radius-lg);
-  box-shadow: var(--mosaic-shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.input-field:hover, .input-field:focus {
-  box-shadow: var(--mosaic-shadow);
-}
-
-.send-btn {
-  border-radius: var(--mosaic-radius);
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  box-shadow: var(--mosaic-shadow-sm);
-  transition: all 0.2s ease;
-}
-
-.send-btn:hover {
-  box-shadow: var(--mosaic-shadow);
-  transform: translateY(-1px);
-}
-
 /* Mini Empty 样式 */
 .mini-empty {
   margin: 8px 0;
@@ -747,52 +569,110 @@ body {
 .directory-list-item {
   cursor: pointer;
   transition: all 0.2s ease;
-  border-radius: var(--mosaic-radius);
-  overflow: hidden;
-  word-break: break-all;
 }
 
 .directory-list-item:hover {
-  background-color: var(--mosaic-background);
+  background: var(--mosaic-background);
 }
 
-/* 模态框样式 */
-.mosaic-modal :deep(.ant-modal-content) {
+/* 适应新的ChatInterface组件 */
+:deep(.chat-container) {
+  flex: 1;
+  background: white;
   border-radius: var(--mosaic-radius-lg);
+  box-shadow: var(--mosaic-shadow);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+:deep(.chat-container:hover) {
   box-shadow: var(--mosaic-shadow-md);
 }
 
-/* 自定义 Ant Design Vue 样式 */
+/* 覆盖Ant Design组件样式 */
 :deep(.ant-btn-primary) {
   background-color: var(--mosaic-primary);
-  border-color: var(--mosaic-primary);
 }
 
 :deep(.ant-btn-primary:hover),
 :deep(.ant-btn-primary:focus) {
   background-color: var(--mosaic-primary-hover);
-  border-color: var(--mosaic-primary-hover);
 }
 
-:deep(.ant-input:focus),
-:deep(.ant-input-affix-wrapper:focus),
-:deep(.ant-input-affix-wrapper-focused) {
-  border-color: var(--mosaic-primary);
-  box-shadow: 0 0 0 2px rgba(86, 97, 241, 0.2);
+/* 模态框样式 */
+.mosaic-modal {
+  :deep(.ant-modal-content) {
+    border-radius: var(--mosaic-radius-lg);
+    overflow: hidden;
+  }
+  
+  :deep(.ant-modal-header) {
+    border-bottom: 1px solid var(--mosaic-border);
+  }
+  
+  :deep(.ant-modal-title) {
+    font-weight: 600;
+  }
+  
+  :deep(.ant-modal-body) {
+    padding: 24px;
+  }
+  
+  :deep(.ant-modal-footer) {
+    border-top: 1px solid var(--mosaic-border);
+  }
 }
 
-:deep(.ant-picker-focused) {
-  border-color: var(--mosaic-primary);
-  box-shadow: 0 0 0 2px rgba(86, 97, 241, 0.2);
+/* 工具类 */
+.mb-4 {
+  margin-bottom: 16px;
 }
 
-:deep(.ant-list-item) {
-  border-radius: var(--mosaic-radius);
-  transition: all 0.2s;
+.mb-2 {
+  margin-bottom: 8px;
 }
 
-:deep(.ant-list-bordered) {
-  border-radius: var(--mosaic-radius);
-  border: 1px solid var(--mosaic-border);
+.ml-2 {
+  margin-left: 8px;
+}
+
+.mr-2 {
+  margin-right: 8px;
+}
+
+.text-base {
+  font-size: 1rem;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+}
+
+.text-gray-500 {
+  color: #6b7280;
+}
+
+.text-blue-500 {
+  color: #3b82f6;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-grow {
+  flex-grow: 1;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.mt-4 {
+  margin-top: 16px;
 }
 </style>

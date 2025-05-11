@@ -46,7 +46,7 @@
 
   .sidebar {
     width: var(--gemini-sidebar-width);
-    @apply p-5 border-r border-gray-200 bg-gray-50 flex flex-col gap-6;
+    @apply pr-5 border-r border-gray-200 bg-gray-50 flex flex-col gap-6;
   }
 
   .chat-area {
