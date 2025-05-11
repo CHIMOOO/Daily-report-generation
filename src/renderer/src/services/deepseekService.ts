@@ -61,6 +61,30 @@ export const getSelectedModel = (): string => {
   return model
 }
 
+// 获取默认提示词
+export const getDefaultPrompt = (): string => {
+  // 尝试直接从localStorage获取
+  let prompt = localStorage.getItem('DEFAULT_PROMPT') || '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
+  
+  // 如果失败，尝试从window.api.localStorage获取
+  if (!prompt && window.api?.localStorage) {
+    prompt = window.api.localStorage.getItem('DEFAULT_PROMPT') || '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
+  }
+  
+  return prompt
+}
+
+// 保存默认提示词
+export const saveDefaultPrompt = (prompt: string): void => {
+  // 保存到localStorage
+  localStorage.setItem('DEFAULT_PROMPT', prompt)
+  
+  // 如果window.api.localStorage可用，也保存到那里
+  if (window.api?.localStorage) {
+    window.api.localStorage.setItem('DEFAULT_PROMPT', prompt)
+  }
+}
+
 // 可用模型列表
 export const AVAILABLE_MODELS = [
   {
@@ -92,6 +116,7 @@ export async function generateDayReport({ gitPath, date, customPrompt = '' }) {
     const apiKey = getApiKey()
     const apiBaseUrl = getApiBaseUrl()
     const model = getSelectedModel()
+    const defaultPrompt = getDefaultPrompt()
 
     // 构建系统提示词
     const systemPrompt = `你是一个帮助生成日报的AI助手。请根据用户提供的Git代码仓库路径和日期，生成一份简洁的工作日报。
@@ -99,7 +124,7 @@ export async function generateDayReport({ gitPath, date, customPrompt = '' }) {
 代码库路径: ${gitPath}`
 
     // 构建用户提示词
-    let userPrompt = `请根据我今天的工作内容，生成一份工作日报。`
+    let userPrompt = defaultPrompt
     if (customPrompt) {
       userPrompt += `\n其他信息：${customPrompt}`
     }

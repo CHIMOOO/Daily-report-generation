@@ -2,11 +2,11 @@
 import { ref, reactive, defineProps, defineEmits, watch, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
 import {
-  saveApiKey,
   isApiKeyConfigured,
   AVAILABLE_MODELS,
   getSelectedModel,
-  saveSelectedModel,
+  getDefaultPrompt,
+  saveDefaultPrompt
 } from '../services/deepseekService'
 import { InfoCircleOutlined, LockOutlined } from '@ant-design/icons-vue'
 
@@ -22,7 +22,8 @@ const emit = defineEmits(['update:visible', 'saved'])
 const formState = reactive({
   apiKey: '',
   apiBaseUrl: 'https://api.deepseek.com',
-  model: 'deepseek-chat'
+  model: 'deepseek-chat',
+  defaultPrompt: ''
 })
 
 const saving = ref(false)
@@ -58,10 +59,15 @@ onMounted(async () => {
           formState.model = result.settings.DEEPSEEK_MODEL
         }
         
+        if (result.settings.DEFAULT_PROMPT) {
+          formState.defaultPrompt = result.settings.DEFAULT_PROMPT
+        }
+        
         // 同时更新localStorage
         localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
         localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
         localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+        localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
         
         console.log('已从文件系统更新设置')
       }
@@ -102,31 +108,36 @@ const handleSave = async () => {
       '直接访问': {
         'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
-        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL')
+        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL'),
+        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT')
       },
       'API访问': window.api?.localStorage ? {
         'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
-        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL')
+        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL'),
+        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT')
       } : '不可用'
     })
     
     console.log('准备保存的值:', {
       apiKey: formState.apiKey,
       apiBaseUrl: formState.apiBaseUrl,
-      model: formState.model
+      model: formState.model,
+      defaultPrompt: formState.defaultPrompt
     })
 
     // 尝试通过常规方式保存到localStorage
     localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
     localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
     localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+    localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
     
     // 如果window.api.localStorage可用，也通过API保存
     if (window.api?.localStorage) {
       window.api.localStorage.setItem('DEEPSEEK_API_KEY', formState.apiKey)
       window.api.localStorage.setItem('DEEPSEEK_API_BASE_URL', formState.apiBaseUrl)
       window.api.localStorage.setItem('DEEPSEEK_MODEL', formState.model)
+      window.api.localStorage.setItem('DEFAULT_PROMPT', formState.defaultPrompt)
     }
 
     // 验证保存是否成功
@@ -134,12 +145,14 @@ const handleSave = async () => {
       '直接访问': {
         'DEEPSEEK_API_KEY': localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': localStorage.getItem('DEEPSEEK_API_BASE_URL'),
-        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL')
+        'DEEPSEEK_MODEL': localStorage.getItem('DEEPSEEK_MODEL'),
+        'DEFAULT_PROMPT': localStorage.getItem('DEFAULT_PROMPT')
       },
       'API访问': window.api?.localStorage ? {
         'DEEPSEEK_API_KEY': window.api.localStorage.getItem('DEEPSEEK_API_KEY'),
         'DEEPSEEK_API_BASE_URL': window.api.localStorage.getItem('DEEPSEEK_API_BASE_URL'),
-        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL')
+        'DEEPSEEK_MODEL': window.api.localStorage.getItem('DEEPSEEK_MODEL'),
+        'DEFAULT_PROMPT': window.api.localStorage.getItem('DEFAULT_PROMPT')
       } : '不可用'
     })
 
@@ -149,7 +162,8 @@ const handleSave = async () => {
         await window.electron.ipcRenderer.invoke('settings:save', {
           DEEPSEEK_API_KEY: formState.apiKey,
           DEEPSEEK_API_BASE_URL: formState.apiBaseUrl,
-          DEEPSEEK_MODEL: formState.model
+          DEEPSEEK_MODEL: formState.model,
+          DEFAULT_PROMPT: formState.defaultPrompt
         })
         console.log('通过IPC保存设置成功')
       }
@@ -231,10 +245,12 @@ const loadSettings = () => {
   const apiKey = localStorage.getItem('DEEPSEEK_API_KEY') || ''
   const apiBaseUrl = localStorage.getItem('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com'
   const model = localStorage.getItem('DEEPSEEK_MODEL') || 'deepseek-chat'
+  const defaultPrompt = localStorage.getItem('DEFAULT_PROMPT') || '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
 
   formState.apiKey = apiKey
   formState.apiBaseUrl = apiBaseUrl
   formState.model = model
+  formState.defaultPrompt = defaultPrompt
 }
 
 // 监听visible变化
@@ -256,7 +272,7 @@ defineExpose({
     :visible="visible"
     @cancel="handleCancel"
     :footer="null"
-    width="500px"
+    width="600px"
     class="mosaic-modal"
     :mask-closable="false"
     :bodyStyle="{ padding: '20px' }"
@@ -290,6 +306,17 @@ defineExpose({
               <a-select-option value="deepseek-reasoner">DeepSeek-R1 (deepseek-reasoner)</a-select-option>
               <a-select-option value="deepseek-coder">DeepSeek-Coder</a-select-option>
             </a-select>
+          </a-form-item>
+          
+          <a-form-item label="默认提示词" name="defaultPrompt">
+            <a-textarea
+              v-model:value="formState.defaultPrompt"
+              placeholder="输入默认提示词，用于生成更详细的日报内容"
+              :auto-size="{ minRows: 3, maxRows: 6 }"
+            />
+            <div class="form-item-help">
+              配置默认提示词，指导AI如何详细生成日报内容
+            </div>
           </a-form-item>
           
           <div class="test-connection">

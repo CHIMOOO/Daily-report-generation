@@ -343,7 +343,8 @@ function registerIpcHandlers(): void {
           settings: {
             DEEPSEEK_API_KEY: '',
             DEEPSEEK_API_BASE_URL: 'https://api.deepseek.com',
-            DEEPSEEK_MODEL: 'deepseek-chat'
+            DEEPSEEK_MODEL: 'deepseek-chat',
+            DEFAULT_PROMPT: '请根据我的Git提交记录，详细总结今天的工作内容，包括完成的任务、解决的问题和取得的进展。格式要清晰，分点罗列，并加入技术要点。'
           } 
         }
       }

@@ -368,7 +368,7 @@ onMounted(() => {
         class="mosaic-modal"
       >
         <div class="mb-4">
-          <h4 class="text-base font-medium mb-2">最近使用的目录</h4>
+          <h4 class="mb-2 text-base font-medium">最近使用的目录</h4>
           <div v-if="recentDirectories.length > 0">
             <a-list bordered>
               <a-list-item
@@ -382,13 +382,13 @@ onMounted(() => {
               </a-list-item>
             </a-list>
           </div>
-          <div v-else class="text-gray-500 text-sm">
+          <div v-else class="text-sm text-gray-500">
             没有最近使用的目录
           </div>
         </div>
 
         <div class="mb-4">
-          <h4 class="text-base font-medium mb-2">手动输入目录</h4>
+          <h4 class="mb-2 text-base font-medium">手动输入目录</h4>
           <div class="flex">
             <a-input
               v-model:value="customDirectory"
@@ -405,7 +405,7 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="mt-4 flex justify-end">
+        <div class="flex justify-end mt-4">
           <a-button @click="directoryDialogVisible = false">
             取消
           </a-button>
