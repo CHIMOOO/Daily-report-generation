@@ -23,6 +23,9 @@ const isCustomDate = ref(false)
 const settingsVisible = ref(false)
 const settingsModalRef = ref(null)
 
+// 添加用户消息变量
+const userMessage = ref('')
+
 // 格式化消息，确保符合ant-design-x-vue要求
 const formatMessage = (content, role) => ({
   id: Date.now().toString(),
@@ -63,6 +66,7 @@ const handleSubmit = async () => {
 
     // 获取Git提交记录
     const commits = await getCommitsForDate(directoryPath.value, dateValue.value)
+    console.log('获取到提交记录:', commits)
 
     // 生成日报内容
     const reportContent = await generateDayReport({
@@ -103,10 +107,24 @@ const toggleDateMode = () => {
 
 // 处理用户输入
 const handleUserInput = async (content) => {
-  if (!content.trim()) return
+  console.log('处理用户输入:', content)
+  if (!content || !content.trim()) {
+    console.log('输入内容为空，不处理')
+    return
+  }
+
+  // 如果API密钥未配置，提示用户设置
+  if (!checkApiKey()) {
+    return
+  }
+
+  // 如果没有选择目录，提示用户选择
+  if (!directoryPath.value) {
+    message.warning('请先选择代码目录')
+    return
+  }
 
   messages.push(formatMessage(content, 'user'))
-
   loading.value = true
 
   try {
@@ -142,6 +160,15 @@ const handleSettingsSaved = () => {
 // 添加调试信息帮助诊断
 const debug = (info) => {
   console.log('[日报助手调试]', info)
+}
+
+// 发送消息处理函数
+const sendMessage = () => {
+  const message = userMessage.value.trim()
+  if (message) {
+    handleUserInput(message)
+    userMessage.value = ''
+  }
 }
 
 // 组件挂载时清除初始消息并添加欢迎消息
@@ -328,12 +355,42 @@ onMounted(() => {
 
           <div class="input-area border-t border-gray-200 p-4 bg-white">
             <div class="relative">
-              <Sender
-                placeholder="输入自定义指令，例如: 添加我今天参加了团队会议"
-                :loading="loading"
-                @send="handleUserInput"
-                class="sender-input"
-              />
+              <!-- 调试专用：添加原生输入框和按钮作为备用 -->
+              <div v-if="true" class="flex gap-2">
+                <input
+                  type="text"
+                  v-model="userMessage"
+                  @keyup.enter="sendMessage"
+                  placeholder="输入自定义指令，例如: 添加我今天参加了团队会议"
+                  class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
+                  :disabled="loading"
+                />
+                <button
+                  @click="sendMessage"
+                  class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                  :disabled="loading || !userMessage.trim()"
+                >
+                  发送
+                </button>
+              </div>
+
+              <!-- 原始Sender组件，暂时隐藏 -->
+              <div v-if="false">
+                <Sender
+                  placeholder="输入自定义指令，例如: 添加我今天参加了团队会议"
+                  :loading="loading"
+                  @send="handleUserInput"
+                  :disabled="!directoryPath.value || !isApiKeyConfigured()"
+                  class="sender-input"
+                />
+              </div>
+
+              <div
+                v-if="!directoryPath.value || !isApiKeyConfigured()"
+                class="text-xs text-gray-500 mt-2"
+              >
+                {{ !isApiKeyConfigured() ? '请先配置DeepSeek API密钥' : '请先选择代码目录' }}
+              </div>
             </div>
           </div>
         </main>
@@ -473,7 +530,7 @@ onMounted(() => {
   background-color: #3b82f6;
   border-color: #3b82f6;
   border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  box-shadow: none;
   transition: all 0.2s;
 }
 
@@ -487,12 +544,19 @@ onMounted(() => {
 .sender-input {
   border-radius: 6px;
   border-color: #e2e8f0;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  box-shadow: none;
 }
 
 .sender-input:focus-within {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: none;
+}
+
+/* 确保sender组件没有重复阴影 */
+:deep(.sender-container),
+:deep(.ant-input),
+:deep(.ant-input-affix-wrapper) {
+  box-shadow: none !important;
 }
 
 /* 聊天区域样式增强 */

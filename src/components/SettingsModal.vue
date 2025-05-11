@@ -1,7 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Modal, Form, Input, Button, message } from 'ant-design-vue'
-import { saveApiKey, isApiKeyConfigured } from '../services/deepseekService'
+import { Modal, Form, Input, Button, message, Select } from 'ant-design-vue'
+import {
+  saveApiKey,
+  isApiKeyConfigured,
+  AVAILABLE_MODELS,
+  getSelectedModel,
+  saveSelectedModel,
+} from '../services/deepseekService'
 
 const props = defineProps({
   visible: {
@@ -13,10 +19,11 @@ const props = defineProps({
 const emit = defineEmits(['update:visible', 'saved'])
 
 const apiKey = ref('')
+const selectedModel = ref('')
 const isApiConfigured = ref(isApiKeyConfigured())
 const loading = ref(false)
 
-// 组件加载时检查缓存中是否有API Key
+// 组件加载时检查缓存中是否有API Key和选定的模型
 onMounted(() => {
   // 检查localStorage中是否有密钥
   const savedKey = localStorage.getItem('deepseek_api_key')
@@ -25,6 +32,9 @@ onMounted(() => {
     apiKey.value = maskApiKey(savedKey)
     isApiConfigured.value = true
   }
+
+  // 获取已保存的模型选择
+  selectedModel.value = getSelectedModel()
 })
 
 // 掩盖API密钥，只显示前4位和后4位
@@ -43,6 +53,11 @@ const handleCancel = () => {
   emit('update:visible', false)
 }
 
+// 处理模型选择改变
+const handleModelChange = (value) => {
+  selectedModel.value = value
+}
+
 const handleSave = () => {
   if (!apiKey.value.trim()) {
     message.error('请输入有效的API密钥')
@@ -51,20 +66,61 @@ const handleSave = () => {
 
   loading.value = true
 
-  // 保存到localStorage
   try {
+    // 保存API密钥到localStorage
     // 判断是否为掩码形式，如果是则不覆盖原有密钥
     if (!apiKey.value.includes('*')) {
       saveApiKey(apiKey.value.trim())
-      message.success('API密钥已保存到本地')
+      message.success('API密钥已保存')
     }
+
+    // 保存选定的模型
+    saveSelectedModel(selectedModel.value)
+    message.success('设置已保存')
+
     isApiConfigured.value = true
     loading.value = false
     emit('saved')
     handleCancel()
   } catch (error) {
-    console.error('保存API密钥时出错:', error)
+    console.error('保存设置时出错:', error)
     message.error('保存失败，请重试')
+    loading.value = false
+  }
+}
+
+// 测试API连接
+const testConnection = async () => {
+  if (!apiKey.value.trim()) {
+    message.error('请先输入API密钥')
+    return
+  }
+
+  loading.value = true
+  try {
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey.value.includes('*') ? localStorage.getItem('deepseek_api_key') : apiKey.value}`,
+      },
+      body: JSON.stringify({
+        model: selectedModel.value,
+        messages: [{ role: 'user', content: '你好' }],
+        max_tokens: 5,
+      }),
+    })
+
+    const data = await response.json()
+
+    if (response.ok) {
+      message.success('连接成功！API密钥有效')
+    } else {
+      message.error(`连接失败: ${data.error?.message || '未知错误'}`)
+    }
+  } catch (error) {
+    message.error(`连接测试失败: ${error.message}`)
+  } finally {
     loading.value = false
   }
 }
@@ -152,29 +208,50 @@ defineExpose({
             >DeepSeek平台</a
           >
         </div>
-        <div class="security-note mt-4 text-sm">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="mr-1 inline-block"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-          </svg>
-          安全提示：API密钥将安全存储在本地浏览器中，不会上传到任何服务器
-        </div>
       </Form.Item>
 
-      <div class="flex justify-end gap-3 mt-6">
-        <Button @click="handleCancel" class="tech-cancel-btn">取消</Button>
-        <Button type="primary" :loading="loading" @click="handleSave" class="tech-submit-btn">
+      <Form.Item
+        label="选择模型"
+        :labelCol="{
+          style: { color: '#475569', marginBottom: '8px', fontSize: '14px', fontWeight: '500' },
+        }"
+      >
+        <Select
+          v-model:value="selectedModel"
+          placeholder="请选择模型"
+          class="tech-select w-full"
+          @change="handleModelChange"
+        >
+          <Select.Option v-for="model in AVAILABLE_MODELS" :key="model.id" :value="model.id">
+            <div class="flex flex-col">
+              <span class="font-medium">{{ model.name }}</span>
+              <span class="text-xs text-gray-500">{{ model.description }}</span>
+            </div>
+          </Select.Option>
+        </Select>
+      </Form.Item>
+
+      <div class="security-note mt-4 text-sm">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="mr-1 inline-block"
+        >
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+        </svg>
+        安全提示：API密钥将安全存储在本地浏览器中，不会上传到任何服务器
+      </div>
+
+      <div class="flex flex-wrap justify-between gap-3 mt-6">
+        <Button @click="testConnection" class="tech-test-btn" :loading="loading">
           <span v-if="!loading" class="mr-1">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -187,13 +264,36 @@ defineExpose({
               stroke-linecap="round"
               stroke-linejoin="round"
             >
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-              <polyline points="17 21 17 13 7 13 7 21"></polyline>
-              <polyline points="7 3 7 8 15 8"></polyline>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
             </svg>
           </span>
-          保存
+          测试连接
         </Button>
+
+        <div class="flex gap-3">
+          <Button @click="handleCancel" class="tech-cancel-btn">取消</Button>
+          <Button type="primary" :loading="loading" @click="handleSave" class="tech-submit-btn">
+            <span v-if="!loading" class="mr-1">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                <polyline points="7 3 7 8 15 8"></polyline>
+              </svg>
+            </span>
+            保存
+          </Button>
+        </div>
       </div>
     </Form>
   </Modal>
@@ -207,6 +307,8 @@ defineExpose({
     0 20px 25px -5px rgba(0, 0, 0, 0.1),
     0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  /* 防止遮罩层叠加 */
+  backdrop-filter: none;
 }
 
 .tech-modal :deep(.ant-modal-header) {
@@ -263,7 +365,8 @@ defineExpose({
   color: #1e293b;
 }
 
-.tech-input {
+.tech-input,
+.tech-select {
   border-radius: 8px;
   border-color: #e2e8f0;
   padding: 10px 12px;
@@ -272,9 +375,23 @@ defineExpose({
 }
 
 .tech-input:focus,
-.tech-input:hover {
+.tech-input:hover,
+.tech-select:focus,
+.tech-select:hover {
   border-color: #3b82f6;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.tech-select :deep(.ant-select-selector) {
+  padding: 0 !important;
+  height: auto !important;
+  min-height: 40px !important;
+  box-shadow: none !important;
+}
+
+.tech-select :deep(.ant-select-selection-item) {
+  padding: 4px 8px !important;
+  line-height: 1.5 !important;
 }
 
 .tech-submit-btn {
@@ -316,6 +433,26 @@ defineExpose({
   transform: translateY(-1px);
 }
 
+.tech-test-btn {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  border-radius: 8px;
+  height: 40px;
+  padding: 0 20px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.tech-test-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
+  transform: translateY(-1px);
+}
+
 .security-note {
   display: flex;
   align-items: center;
@@ -336,6 +473,25 @@ defineExpose({
 /* 表单项间距优化 */
 .tech-modal :deep(.ant-form-item) {
   margin-bottom: 24px;
+}
+
+/* 确保表单控件没有重复阴影 */
+.tech-modal :deep(.ant-input),
+.tech-modal :deep(.ant-input-password),
+.tech-modal :deep(.ant-select-selector),
+.tech-modal :deep(.ant-input-affix-wrapper) {
+  box-shadow: none !important;
+}
+
+/* 修复模态框中输入框hover/focus状态 */
+.tech-modal :deep(.ant-input:hover),
+.tech-modal :deep(.ant-input:focus),
+.tech-modal :deep(.ant-input-password:hover),
+.tech-modal :deep(.ant-input-password:focus),
+.tech-modal :deep(.ant-input-affix-wrapper:hover),
+.tech-modal :deep(.ant-input-affix-wrapper:focus) {
+  box-shadow: none !important;
+  border-color: #3b82f6;
 }
 
 /* 表单标签样式优化 */

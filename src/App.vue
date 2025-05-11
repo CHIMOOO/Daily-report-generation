@@ -65,6 +65,7 @@ body {
   border-color: #e2e8f0;
   background-color: #fff;
   padding: 6px 12px;
+  box-shadow: none;
 }
 
 .ant-input:hover,
@@ -72,7 +73,7 @@ body {
 .ant-input-password:hover,
 .ant-input-password:focus {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: none;
 }
 
 .ant-form-item-label > label {
@@ -83,12 +84,13 @@ body {
 .ant-select:not(.ant-select-customize-input) .ant-select-selector {
   border-radius: 4px;
   border-color: #e2e8f0;
+  box-shadow: none;
 }
 
 .ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input)
   .ant-select-selector {
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: none;
 }
 
 .ant-modal-content {
