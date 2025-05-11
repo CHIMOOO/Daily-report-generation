@@ -175,61 +175,166 @@ onMounted(() => {
 <template>
   <div class="day-report-container">
     <XProvider defaultModel="deepseek" :allowAttachments="false">
-      <div class="flex flex-col h-screen">
-        <header class="bg-blue-600 text-white p-4 flex justify-between items-center">
-          <h1 class="text-2xl font-bold">日报助手</h1>
-          <Button type="primary" ghost @click="openSettings"> 设置 </Button>
+      <div class="flex flex-col h-screen bg-white text-gray-800">
+        <header class="bg-white border-b border-gray-200 p-4 flex justify-between items-center">
+          <div class="flex items-center">
+            <div class="text-blue-500 mr-2">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+                <line x1="16" y1="8" x2="2" y2="22"></line>
+                <line x1="17.5" y1="15" x2="9" y2="15"></line>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-semibold text-gray-800">日报助手</h1>
+          </div>
+          <Button type="primary" ghost @click="openSettings">
+            <span class="mr-1">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                ></path>
+              </svg>
+            </span>
+            设置
+          </Button>
         </header>
 
         <main class="flex-1 overflow-hidden flex flex-col">
-          <div class="settings-panel p-4 bg-gray-100">
+          <div class="settings-panel p-4 bg-gray-50 border-b border-gray-200">
             <div class="flex flex-wrap gap-4 items-center">
               <div>
-                <Button @click="handleSelectDirectory" type="primary"> 选择代码目录 </Button>
-                <span v-if="directoryPath" class="ml-2">{{ directoryPath }}</span>
+                <Button @click="handleSelectDirectory" type="primary">
+                  <span class="mr-1">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path
+                        d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"
+                      ></path>
+                    </svg>
+                  </span>
+                  选择代码目录
+                </Button>
+                <span v-if="directoryPath" class="ml-2 text-gray-600">{{ directoryPath }}</span>
               </div>
 
               <div class="flex items-center gap-2">
                 <Button @click="toggleDateMode">
+                  <span class="mr-1">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                  </span>
                   {{ isCustomDate ? '使用今天' : '自定义日期' }}
                 </Button>
 
-                <div v-if="isCustomDate" class="flex items-center">
+                <div
+                  v-if="isCustomDate"
+                  class="flex items-center bg-white rounded border border-gray-300 overflow-hidden"
+                >
                   <input
                     type="date"
                     :value="dateValue.toISOString().split('T')[0]"
                     @change="(e) => handleDateChange(new Date(e.target.value))"
-                    class="px-2 py-1 border rounded"
+                    class="px-2 py-1 focus:outline-none"
                   />
                 </div>
               </div>
 
-              <Button @click="handleSubmit" type="primary" :loading="loading" danger>
+              <Button @click="handleSubmit" type="primary" :loading="loading" class="generate-btn">
+                <span v-if="!loading" class="mr-1">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path
+                      d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z"
+                    ></path>
+                    <polyline points="12 16 16 12 12 8"></polyline>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                  </svg>
+                </span>
                 {{ loading ? '生成中...' : '生成日报' }}
               </Button>
             </div>
           </div>
 
-          <div class="conversation-area flex-1 overflow-y-auto p-4">
+          <div class="conversation-area flex-1 overflow-y-auto p-4 scrollbar">
             <div class="flex flex-col gap-4">
-              <!-- 简单地遍历消息并使用Bubble组件显示 -->
               <template v-for="msg in messages" :key="msg.id">
-                <Bubble :role="msg.role" :content="msg.content" :showTime="true" />
+                <div :class="['message-bubble', msg.role === 'user' ? 'user-bubble' : 'ai-bubble']">
+                  <Bubble :role="msg.role" :content="msg.content" :showTime="true" />
+                </div>
               </template>
 
-              <!-- 加载提示 -->
               <div v-if="loading" class="self-center py-2">
-                <div class="animate-pulse text-gray-400">正在生成回复...</div>
+                <div class="pulse-loader">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
               </div>
             </div>
           </div>
 
-          <div class="input-area border-t p-4">
-            <Sender
-              placeholder="输入自定义指令，例如: 添加我今天处理了XX任务"
-              :loading="loading"
-              @send="handleUserInput"
-            />
+          <div class="input-area border-t border-gray-200 p-4 bg-white">
+            <div class="relative">
+              <Sender
+                placeholder="输入自定义指令，例如: 添加我今天参加了团队会议"
+                :loading="loading"
+                @send="handleUserInput"
+                class="sender-input"
+              />
+            </div>
           </div>
         </main>
       </div>
@@ -245,12 +350,171 @@ onMounted(() => {
 
 <style scoped>
 .day-report-container {
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
+/* 消息气泡样式 */
+.message-bubble {
+  max-width: 85%;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  animation: fadeIn 0.3s;
+  margin-bottom: 0.75rem;
+}
+
+.user-bubble {
+  align-self: flex-end;
+  background: #f0f9ff;
+  border: 1px solid #e0f2fe;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.ai-bubble {
+  align-self: flex-start;
+  background: #f9fafb;
+  border: 1px solid #f1f5f9;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* 加载动画 */
+.pulse-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 1rem 0;
+}
+
+.pulse-loader span {
+  width: 8px;
+  height: 8px;
+  background-color: #3b82f6;
+  border-radius: 50%;
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+.pulse-loader span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.pulse-loader span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    transform: scale(0.5);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .message-bubble {
+    max-width: 95%;
+  }
+
+  .settings-panel .flex {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .settings-panel .flex > div {
+    margin-bottom: 8px;
+    width: 100%;
+  }
+
+  .settings-panel button {
+    width: 100%;
+  }
+}
+
+/* 滚动条样式 */
+.scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* 淡入动画 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Mosaic风格按钮和表单元素 */
+.generate-btn {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.generate-btn:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
+}
+
+.sender-input {
+  border-radius: 6px;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.sender-input:focus-within {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* 聊天区域样式增强 */
 .conversation-area {
-  background-color: #f9f9f9;
+  padding: 1rem;
+  background-color: #fcfcfc;
+}
+
+/* 头部和设置面板样式增强 */
+header {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.settings-panel {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  z-index: 5;
+}
+
+/* 输入区域样式增强 */
+.input-area {
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.03);
+  padding: 1rem;
 }
 </style>

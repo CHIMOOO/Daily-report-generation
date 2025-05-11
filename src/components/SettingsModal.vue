@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { Modal, Form, Input, Button, message } from 'ant-design-vue'
 import { saveApiKey, isApiKeyConfigured } from '../services/deepseekService'
 
@@ -15,6 +15,25 @@ const emit = defineEmits(['update:visible', 'saved'])
 const apiKey = ref('')
 const isApiConfigured = ref(isApiKeyConfigured())
 const loading = ref(false)
+
+// 组件加载时检查缓存中是否有API Key
+onMounted(() => {
+  // 检查localStorage中是否有密钥
+  const savedKey = localStorage.getItem('deepseek_api_key')
+  if (savedKey) {
+    // 为了安全起见，不直接显示完整的API密钥
+    apiKey.value = maskApiKey(savedKey)
+    isApiConfigured.value = true
+  }
+})
+
+// 掩盖API密钥，只显示前4位和后4位
+const maskApiKey = (key) => {
+  if (!key || key.length < 8) return key
+  const prefix = key.substring(0, 4)
+  const suffix = key.substring(key.length - 4)
+  return `${prefix}${'*'.repeat(key.length - 8)}${suffix}`
+}
 
 const showModal = () => {
   emit('update:visible', true)
@@ -32,15 +51,22 @@ const handleSave = () => {
 
   loading.value = true
 
-  // 模拟API验证
-  setTimeout(() => {
-    saveApiKey(apiKey.value.trim())
+  // 保存到localStorage
+  try {
+    // 判断是否为掩码形式，如果是则不覆盖原有密钥
+    if (!apiKey.value.includes('*')) {
+      saveApiKey(apiKey.value.trim())
+      message.success('API密钥已保存到本地')
+    }
     isApiConfigured.value = true
     loading.value = false
-    message.success('API密钥已保存')
     emit('saved')
     handleCancel()
-  }, 500)
+  } catch (error) {
+    console.error('保存API密钥时出错:', error)
+    message.error('保存失败，请重试')
+    loading.value = false
+  }
 }
 
 // 暴露方法供父组件调用
@@ -50,22 +76,278 @@ defineExpose({
 </script>
 
 <template>
-  <Modal title="设置" :visible="props.visible" :footer="null" @cancel="handleCancel">
+  <Modal
+    title="设置"
+    :visible="props.visible"
+    :footer="null"
+    @cancel="handleCancel"
+    :bodyStyle="{
+      background: 'white',
+      color: '#1e293b',
+      borderRadius: '12px',
+      padding: '24px',
+    }"
+    :maskStyle="{
+      backdropFilter: 'blur(5px)',
+      background: 'rgba(0,0,0,0.2)',
+    }"
+    class="tech-modal"
+  >
+    <div class="tech-header mb-4">
+      <div class="tech-icon">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path d="M12 22C6.5 22 2 17.5 2 12S6.5 2 12 2s10 4.5 10 10-4.5 10-10 10z"></path>
+          <path d="M12 18c-3.3 0-6-2.7-6-6s2.7-6 6-6 6 2.7 6 6-2.7 6-6 6z"></path>
+          <path d="M12 14c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z"></path>
+        </svg>
+      </div>
+      <div class="tech-title">API密钥配置</div>
+    </div>
+
     <Form layout="vertical">
-      <Form.Item label="DeepSeek API密钥" required>
-        <Input.Password v-model:value="apiKey" placeholder="请输入DeepSeek API密钥" />
-        <div class="mt-2 text-gray-500 text-sm">
+      <Form.Item
+        label="DeepSeek API密钥"
+        required
+        :labelCol="{
+          style: { color: '#475569', marginBottom: '8px', fontSize: '14px', fontWeight: '500' },
+        }"
+      >
+        <Input.Password
+          v-model:value="apiKey"
+          placeholder="请输入DeepSeek API密钥"
+          class="tech-input"
+        />
+        <div class="mt-2 text-gray-500 text-sm flex items-center">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="mr-2"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+          </svg>
           获取API密钥请访问:
-          <a href="https://platform.deepseek.com" target="_blank" class="text-blue-500"
+          <a
+            href="https://platform.deepseek.com"
+            target="_blank"
+            class="text-blue-600 hover:text-blue-700 ml-1"
             >DeepSeek平台</a
           >
         </div>
+        <div class="security-note mt-4 text-sm">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="mr-1 inline-block"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+          安全提示：API密钥将安全存储在本地浏览器中，不会上传到任何服务器
+        </div>
       </Form.Item>
 
-      <div class="flex justify-end gap-2">
-        <Button @click="handleCancel">取消</Button>
-        <Button type="primary" :loading="loading" @click="handleSave">保存</Button>
+      <div class="flex justify-end gap-3 mt-6">
+        <Button @click="handleCancel" class="tech-cancel-btn">取消</Button>
+        <Button type="primary" :loading="loading" @click="handleSave" class="tech-submit-btn">
+          <span v-if="!loading" class="mr-1">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+          </span>
+          保存
+        </Button>
       </div>
     </Form>
   </Modal>
 </template>
+
+<style scoped>
+.tech-modal :deep(.ant-modal-content) {
+  background: white;
+  border-radius: 12px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.tech-modal :deep(.ant-modal-header) {
+  background: white;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 20px 24px;
+}
+
+.tech-modal :deep(.ant-modal-title) {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.tech-modal :deep(.ant-modal-close) {
+  color: #64748b;
+  transition:
+    color 0.2s,
+    transform 0.2s;
+}
+
+.tech-modal :deep(.ant-modal-close):hover {
+  color: #334155;
+  transform: rotate(90deg);
+}
+
+.tech-modal :deep(.ant-modal-body) {
+  padding: 24px;
+}
+
+.tech-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tech-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: #f1f5f9;
+  margin-right: 16px;
+  color: #3b82f6;
+}
+
+.tech-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.tech-input {
+  border-radius: 8px;
+  border-color: #e2e8f0;
+  padding: 10px 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  height: auto;
+}
+
+.tech-input:focus,
+.tech-input:hover {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.tech-submit-btn {
+  background-color: #3b82f6;
+  border-color: #3b82f6;
+  border-radius: 8px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s;
+}
+
+.tech-submit-btn:hover {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.tech-cancel-btn {
+  background: white;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  border-radius: 8px;
+  height: 40px;
+  padding: 0 20px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.tech-cancel-btn:hover {
+  border-color: #d1d5db;
+  color: #475569;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.security-note {
+  display: flex;
+  align-items: center;
+  background: #f0f9ff;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border-left: 3px solid #3b82f6;
+  color: #0369a1;
+  font-size: 13px;
+  margin-top: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.security-note svg {
+  color: #3b82f6;
+}
+
+/* 表单项间距优化 */
+.tech-modal :deep(.ant-form-item) {
+  margin-bottom: 24px;
+}
+
+/* 表单标签样式优化 */
+.tech-modal :deep(.ant-form-item-label > label) {
+  font-weight: 500;
+  font-size: 14px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+/* 按钮组样式 */
+.tech-modal .flex {
+  gap: 0.75rem;
+}
+</style>
